@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+.git/
+.gitignore
+.idea/
+.vscode/
+*.user
+*.suo
+*.cache
+README.md
+API_TESTING.md
+DATABASE_SETUP.md
+FIXES_AND_MIGRATION.md
+OPRAVENE_CHYBY.md
+
