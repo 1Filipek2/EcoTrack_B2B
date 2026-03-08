@@ -1,5 +1,5 @@
 using EcoTrack.Application.DTOs;
-namespace EcoTrack.Core.Applicattion.Interfaces;
+namespace EcoTrack.Application.Interfaces;
 
 public interface IAiExtractorService
 {
