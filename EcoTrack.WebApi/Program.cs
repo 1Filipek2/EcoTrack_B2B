@@ -56,11 +56,8 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddApplication();
 
-// Get raw connection string from config
 var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase");
 
-// CRITICAL: Normalize connection string BEFORE DI registration
-// Railway may encode it with quotes, extra params, incomplete sslmode, etc.
 var normalizedConnectionString = string.IsNullOrEmpty(rawConnectionString)
     ? "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder"
     : NormalizeConnectionString(rawConnectionString);
@@ -75,7 +72,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Apply migrations and seed data (with error handling for Railway startup)
 try
 {
     using (var scope = app.Services.CreateScope())
@@ -106,12 +102,27 @@ static string NormalizeConnectionString(string value)
     if (string.IsNullOrWhiteSpace(value))
         return "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder";
 
-    var normalized = value
-        .Trim()
-        .Trim('"')           // Remove surrounding quotes Railway may add
-        .Trim('\'');         // Remove single quotes too
+    var normalized = value.Trim().Trim('"').Trim('\'');
+    
+    if (normalized.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+        normalized.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    {
+        if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
+        {
+            var userInfo = uri.UserInfo?.Split(':', 2, StringSplitOptions.None) ?? Array.Empty<string>();
+            var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
+            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+            var database = uri.AbsolutePath.Trim('/');
+            var port = uri.IsDefaultPort ? 5432 : uri.Port;
 
-    // Remove malformed channel_binding parameter that Npgsql doesn't recognize
+            if (!string.IsNullOrWhiteSpace(uri.Host) && !string.IsNullOrWhiteSpace(database))
+            {
+                return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+            }
+        }
+    }
+
+    // Fallback for key-value format; strip unsupported channel_binding parameter.
     normalized = System.Text.RegularExpressions.Regex.Replace(
         normalized,
         @"[&?]channel_binding=\w+",
@@ -119,18 +130,12 @@ static string NormalizeConnectionString(string value)
         System.Text.RegularExpressions.RegexOptions.IgnoreCase
     );
 
-    // Fix incomplete sslmode (ends with ?sslmode without value)
     if (normalized.EndsWith("?sslmode", StringComparison.OrdinalIgnoreCase))
-    {
         normalized += "=require";
-    }
 
-    // Ensure sslmode=require is present
-    if (!normalized.Contains("sslmode", StringComparison.OrdinalIgnoreCase))
-    {
-        // If no sslmode at all, add it
-        normalized += normalized.Contains("?", StringComparison.OrdinalIgnoreCase) ? "&sslmode=require" : "?sslmode=require";
-    }
+    if (!normalized.Contains("sslmode", StringComparison.OrdinalIgnoreCase) &&
+        !normalized.Contains("SSL Mode", StringComparison.OrdinalIgnoreCase))
+        normalized += normalized.Contains("?", StringComparison.OrdinalIgnoreCase) ? "&sslmode=require" : ";SSL Mode=Require";
 
     return normalized;
 }
