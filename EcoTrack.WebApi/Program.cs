@@ -56,11 +56,15 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddApplication();
 
-var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
-    ?? "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder";
+// Get raw connection string from config
+var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase");
 
 // CRITICAL: Normalize connection string BEFORE DI registration
-var normalizedConnectionString = NormalizeConnectionString(rawConnectionString);
+// Railway may encode it with quotes, extra params, incomplete sslmode, etc.
+var normalizedConnectionString = string.IsNullOrEmpty(rawConnectionString)
+    ? "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder"
+    : NormalizeConnectionString(rawConnectionString);
+
 builder.Services.AddInfrastructure(normalizedConnectionString);
 
 var app = builder.Build();
@@ -99,14 +103,34 @@ app.Run();
 
 static string NormalizeConnectionString(string value)
 {
-    var normalized = value.Trim().Trim('"');
+    if (string.IsNullOrWhiteSpace(value))
+        return "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder";
 
-    // Remove problematic channel_binding parameter that Npgsql doesn't recognize
-    normalized = normalized.Replace("&channel_binding=require", string.Empty, StringComparison.OrdinalIgnoreCase);
+    var normalized = value
+        .Trim()
+        .Trim('"')           // Remove surrounding quotes Railway may add
+        .Trim('\'');         // Remove single quotes too
 
-    // Fix incomplete sslmode parameter (ends with ?sslmode instead of ?sslmode=require)
+    // Remove malformed channel_binding parameter that Npgsql doesn't recognize
+    normalized = System.Text.RegularExpressions.Regex.Replace(
+        normalized,
+        @"[&?]channel_binding=\w+",
+        "",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase
+    );
+
+    // Fix incomplete sslmode (ends with ?sslmode without value)
     if (normalized.EndsWith("?sslmode", StringComparison.OrdinalIgnoreCase))
+    {
         normalized += "=require";
+    }
+
+    // Ensure sslmode=require is present
+    if (!normalized.Contains("sslmode", StringComparison.OrdinalIgnoreCase))
+    {
+        // If no sslmode at all, add it
+        normalized += normalized.Contains("?", StringComparison.OrdinalIgnoreCase) ? "&sslmode=require" : "?sslmode=require";
+    }
 
     return normalized;
 }
