@@ -22,6 +22,8 @@ RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 EXPOSE 8080
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "EcoTrack.WebApi.dll"]
 
