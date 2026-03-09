@@ -35,6 +35,9 @@ public class AuthService : IAuthService
         if (user == null)
             return (false, string.Empty, string.Empty, null);
 
+        if (!user.IsEmailVerified)
+            return (false, string.Empty, string.Empty, null);
+
         if (!VerifyPassword(password, user.PasswordHash))
             return (false, string.Empty, string.Empty, null);
 
@@ -87,7 +90,14 @@ public class AuthService : IAuthService
         // Send verification email only if SMTP configured
         if (!isDevelopmentMode)
         {
-            await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
+            var sent = await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
+            if (!sent)
+            {
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync(cancellationToken);
+                return (false, "Unable to send verification email. Check SMTP settings and try again.");
+            }
+
             return (true, "User registered. Check your email for verification code.");
         }
 
