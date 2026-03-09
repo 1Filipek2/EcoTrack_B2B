@@ -23,6 +23,12 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Windows-style paths (backslash artifacts)
+**/bin\*
+**/obj\*
+**\Debug
+**\Release
+
 # .NET Core
 project.lock.json
 project.fragment.lock.json
