@@ -58,8 +58,10 @@ builder.Services.AddApplication();
 
 var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
     ?? "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder";
-var connectionString = NormalizeConnectionString(rawConnectionString);
-builder.Services.AddInfrastructure(connectionString);
+
+// CRITICAL: Normalize connection string BEFORE DI registration
+var normalizedConnectionString = NormalizeConnectionString(rawConnectionString);
+builder.Services.AddInfrastructure(normalizedConnectionString);
 
 var app = builder.Build();
 
@@ -99,9 +101,10 @@ static string NormalizeConnectionString(string value)
 {
     var normalized = value.Trim().Trim('"');
 
-    // Common copy/paste issue from managed DB UIs.
+    // Remove problematic channel_binding parameter that Npgsql doesn't recognize
     normalized = normalized.Replace("&channel_binding=require", string.Empty, StringComparison.OrdinalIgnoreCase);
 
+    // Fix incomplete sslmode parameter (ends with ?sslmode instead of ?sslmode=require)
     if (normalized.EndsWith("?sslmode", StringComparison.OrdinalIgnoreCase))
         normalized += "=require";
 
