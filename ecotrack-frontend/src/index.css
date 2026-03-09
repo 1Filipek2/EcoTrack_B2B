@@ -4,6 +4,14 @@
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
   }
+
+  @media (max-width: 640px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
 }
 
 @layer components {

@@ -108,9 +108,9 @@ export default function DashboardPage() {
       setVatNumber('');
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
-        setLinkError((err.response?.data as { error?: string } | undefined)?.error || 'Failed to link company.');
+        setLinkError((err.response?.data as { error?: string } | undefined)?.error || t('failedLinkCompany'));
       } else {
-        setLinkError('Failed to link company.');
+        setLinkError(t('failedLinkCompany'));
       }
     } finally {
       setLinking(false);
@@ -118,7 +118,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm('Do you really want to delete your account? This action cannot be undone.'))
+    if (!window.confirm(t('confirmDeleteAccount')))
       return;
 
     setDeletingAccount(true);
@@ -128,9 +128,9 @@ export default function DashboardPage() {
       navigate('/login');
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
-        alert((err.response?.data as { error?: string } | undefined)?.error || 'Failed to delete account.');
+        alert((err.response?.data as { error?: string } | undefined)?.error || t('failedDeleteAccount'));
       } else {
-        alert('Failed to delete account.');
+        alert(t('failedDeleteAccount'));
       }
     } finally {
       setDeletingAccount(false);
@@ -313,22 +313,25 @@ export default function DashboardPage() {
                     onClick={() => setExpandedEmissionId(expanded ? null : emission.id)}
                     className="w-full text-left flex flex-col gap-2 p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                   >
-                    <div className="flex justify-between items-start sm:items-center gap-2 flex-col sm:flex-row">
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm sm:text-base text-gray-900">{emission.category}</p>
-                        <p className="text-xs sm:text-sm text-gray-600">
-                          {new Date(emission.reportDate).toLocaleDateString()}
+                    <div className="flex justify-between items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm sm:text-base text-gray-900 truncate">{emission.category}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <p className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
+                          {emission.amount} {t('units')}
                         </p>
+                        <ChevronDown className={`w-4 sm:w-5 h-4 sm:h-5 text-gray-500 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} />
                       </div>
-                      <div className="flex items-center gap-2 sm:gap-3 flex-1 sm:flex-none justify-between sm:justify-end">
-                        <div className="text-right">
-                          <p className="font-semibold text-sm sm:text-base text-gray-900">
-                            {emission.co2Equivalent.toFixed(2)} kg CO₂
-                          </p>
-                          <p className="text-xs sm:text-sm text-gray-600">{emission.amount} units</p>
-                        </div>
-                        <ChevronDown className={`w-4 sm:w-5 h-4 sm:h-5 text-gray-500 transition-transform duration-300 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`} />
-                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center gap-2">
+                      <p className="text-xs sm:text-sm text-gray-600">
+                        {new Date(emission.reportDate).toLocaleDateString()}
+                      </p>
+                      <p className="font-semibold text-sm sm:text-base text-gray-900 whitespace-nowrap">
+                        {emission.co2Equivalent.toFixed(2)} kg CO₂
+                      </p>
                     </div>
 
                     <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
