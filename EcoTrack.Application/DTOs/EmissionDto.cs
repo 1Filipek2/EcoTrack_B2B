@@ -8,4 +8,5 @@ public class EmissionDto
     public decimal Amount { get; set; }
     public decimal Co2Equivalent { get; set; }
     public DateTimeOffset ReportDate { get; set; }
+    public string RawData { get; set; } = string.Empty;
 }

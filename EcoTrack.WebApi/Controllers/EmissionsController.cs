@@ -6,6 +6,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace EcoTrack.WebApi.Controllers;
 
@@ -30,6 +31,13 @@ public class EmissionsController : ControllerBase
     {
         try
         {
+            var currentCompanyId = GetCurrentCompanyId();
+            if (!currentCompanyId.HasValue)
+                return BadRequest(new { error = "Your account is not linked to a company." });
+
+            if (request.CompanyId != currentCompanyId.Value)
+                return Forbid();
+
             var company = await _context.Companies.FindAsync(request.CompanyId);
             if (company == null)
                 return BadRequest(new { error = $"Company with ID {request.CompanyId} not found" });
@@ -59,7 +67,8 @@ public class EmissionsController : ControllerBase
                 Category = category.Name,
                 Amount = emission.Amount,
                 Co2Equivalent = emission.Co2Equivalent,
-                ReportDate = emission.ReportDate
+                ReportDate = emission.ReportDate,
+                RawData = emission.RawData
             };
 
             return CreatedAtAction(nameof(GetEmission), new { id = emission.Id }, dto);
@@ -74,6 +83,13 @@ public class EmissionsController : ControllerBase
     [HttpPost("process-unstructured")]
     public async Task<ActionResult<Guid>> ProcessUnstructured([FromBody] ProcessUnstructuredEmissionRequest request, CancellationToken cancellationToken)
     {
+        var currentCompanyId = GetCurrentCompanyId();
+        if (!currentCompanyId.HasValue)
+            return BadRequest(new { error = "Your account is not linked to a company." });
+
+        if (request.CompanyId != currentCompanyId.Value)
+            return Forbid();
+
         var emissionId = await _mediator.Send(
             new ProcessUnstructuredDataCommand(request.CompanyId, request.RawText, request.ReportedDate),
             cancellationToken);
@@ -84,10 +100,14 @@ public class EmissionsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<EmissionDto>> GetEmission(Guid id)
     {
+        var currentCompanyId = GetCurrentCompanyId();
+        if (!currentCompanyId.HasValue)
+            return BadRequest(new { error = "Your account is not linked to a company." });
+
         var emission = await _context.EmissionEntries
             .Include(e => e.Company)
             .Include(e => e.Category)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id && e.Company.Id == currentCompanyId.Value);
 
         if (emission == null)
             return NotFound();
@@ -99,7 +119,8 @@ public class EmissionsController : ControllerBase
             Category = emission.Category.Name,
             Amount = emission.Amount,
             Co2Equivalent = emission.Co2Equivalent,
-            ReportDate = emission.ReportDate
+            ReportDate = emission.ReportDate,
+            RawData = emission.RawData
         };
 
         return Ok(dto);
@@ -108,9 +129,23 @@ public class EmissionsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResult<EmissionDto>>> GetEmissions([FromQuery] PaginationParams pagination)
     {
+        var currentCompanyId = GetCurrentCompanyId();
+        if (!currentCompanyId.HasValue)
+        {
+            return Ok(new PagedResult<EmissionDto>
+            {
+                Items = new List<EmissionDto>(),
+                TotalCount = 0,
+                PageNumber = pagination.PageNumber,
+                PageSize = pagination.PageSize
+            });
+        }
+
         var query = _context.EmissionEntries
             .Include(e => e.Company)
-            .Include(e => e.Category);
+            .Include(e => e.Category)
+            .Where(e => e.Company.Id == currentCompanyId.Value)
+            .OrderByDescending(e => e.ReportDate);
         
         var totalCount = await query.CountAsync();
         
@@ -124,7 +159,8 @@ public class EmissionsController : ControllerBase
                 Category = e.Category.Name,
                 Amount = e.Amount,
                 Co2Equivalent = e.Co2Equivalent,
-                ReportDate = e.ReportDate
+                ReportDate = e.ReportDate,
+                RawData = e.RawData
             })
             .ToListAsync();
 
@@ -137,6 +173,12 @@ public class EmissionsController : ControllerBase
         };
 
         return Ok(result);
+    }
+
+    private Guid? GetCurrentCompanyId()
+    {
+        var companyClaim = User.FindFirstValue("CompanyId");
+        return Guid.TryParse(companyClaim, out var companyId) ? companyId : null;
     }
 }
 

@@ -14,7 +14,8 @@ public static class EmissionMappings
             Category = entity.Category.Name,
             Amount = entity.Amount,
             Co2Equivalent = entity.Co2Equivalent,
-            ReportDate = entity.ReportDate
+            ReportDate = entity.ReportDate,
+            RawData = entity.RawData
         };
     }
 }

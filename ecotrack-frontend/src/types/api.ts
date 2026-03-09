@@ -54,6 +54,7 @@ export interface EmissionEntry {
   amount: number;
   co2Equivalent: number;
   reportDate: string;
+  rawData: string;
 }
 
 export interface CreateEmissionRequest {

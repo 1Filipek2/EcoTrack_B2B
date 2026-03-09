@@ -14,11 +14,13 @@ public class AuthService : IAuthService
 {
     private readonly IEcoTrackDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
 
-    public AuthService(IEcoTrackDbContext context, IConfiguration configuration)
+    public AuthService(IEcoTrackDbContext context, IConfiguration configuration, IEmailService emailService)
     {
         _context = context;
         _configuration = configuration;
+        _emailService = emailService;
     }
 
     public async Task<(bool Success, string Token, string Role, Guid? CompanyId)> LoginAsync(
@@ -62,18 +64,60 @@ public class AuthService : IAuthService
                 return (false, "Company not found.");
         }
 
+        var verificationCode = GenerateVerificationCode();
+        
+        // Check if SMTP is configured
+        var smtpUsername = _configuration["SmtpSettings:Username"];
+        var isDevelopmentMode = string.IsNullOrEmpty(smtpUsername);
+        
         var user = new User
         {
             Email = email,
             PasswordHash = HashPassword(password),
             Role = companyId.HasValue ? "CompanyUser" : "Admin",
-            CompanyId = companyId
+            CompanyId = companyId,
+            IsEmailVerified = isDevelopmentMode, // Auto-verify in dev mode
+            EmailVerificationToken = isDevelopmentMode ? null : HashPassword(verificationCode),
+            EmailVerificationTokenExpiresAt = isDevelopmentMode ? null : DateTime.UtcNow.AddHours(24)
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return (true, "User registered successfully.");
+        // Send verification email only if SMTP configured
+        if (!isDevelopmentMode)
+        {
+            await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
+            return (true, "User registered. Check your email for verification code.");
+        }
+
+        return (true, "User registered successfully. (Dev mode: email verification skipped)");
+    }
+
+    public async Task<(bool Success, string Message)> VerifyEmailAsync(string email, string verificationCode, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
+        if (user == null)
+            return (false, "User not found.");
+
+        if (user.IsEmailVerified)
+            return (false, "Email already verified.");
+
+        if (user.EmailVerificationTokenExpiresAt < DateTime.UtcNow)
+            return (false, "Verification code expired.");
+
+        if (!VerifyPassword(verificationCode, user.EmailVerificationToken))
+            return (false, "Invalid verification code.");
+
+        user.IsEmailVerified = true;
+        user.EmailVerificationToken = null;
+        user.EmailVerificationTokenExpiresAt = null;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return (true, "Email verified successfully.");
     }
 
     public async Task<(bool Success, string Token, string Email, string Role, Guid? CompanyId, string Message)> LinkCompanyAsync(
@@ -97,6 +141,17 @@ public class AuthService : IAuthService
 
         var token = GenerateJwtToken(user.Id, user.Email, user.Role, user.CompanyId);
         return (true, token, user.Email, user.Role, user.CompanyId, "Company linked successfully.");
+    }
+
+    public async Task<(bool Success, string Message)> DeleteAccountAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user is null)
+            return (false, "User not found.");
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync(cancellationToken);
+        return (true, "Account deleted successfully.");
     }
 
     public string GenerateJwtToken(Guid userId, string email, string role, Guid? companyId)
@@ -141,5 +196,10 @@ public class AuthService : IAuthService
     {
         var hashToVerify = HashPassword(password);
         return hashToVerify == storedHash;
+    }
+
+    private static string GenerateVerificationCode()
+    {
+        return Random.Shared.Next(100000, 999999).ToString();
     }
 }
