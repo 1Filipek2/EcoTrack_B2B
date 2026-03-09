@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const rawApiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5222/api';
+const rawApiBaseUrl = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) ? import.meta.env.VITE_API_URL : 'http://localhost:5222/api';
 
 function normalizeApiBaseUrl(url: string): string {
   const trimmed = url.trim().replace(/\/+$/, '');
@@ -42,3 +42,4 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+// No custom ImportMeta interface found. Confirmed correct usage of import.meta.env for Vite.

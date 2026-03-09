@@ -6,12 +6,10 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "esModuleInterop": true,
-    "types": ["node", "react", "react-dom"],
+    "types": ["node", "react", "react-dom", "vite/client"],
     "skipLibCheck": true,
-
-    /* Bundler mode */
-    "moduleResolution": "node",
-    "allowImportingTsExtensions": true,
+    "composite": true,
+    "moduleResolution": "bundler",
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
@@ -25,5 +23,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src", "src/vite-env.d.ts"]
 }

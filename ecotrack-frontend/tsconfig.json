@@ -1,13 +1,11 @@
 {
   "compilerOptions": {
     "jsx": "react-jsx",
-    "moduleResolution": "node",
-    "types": ["node", "react", "react-dom"],
-    "esModuleInterop": true
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node", "react", "react-dom", "vite/client"],
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "include": ["src", "src/vite-env.d.ts"]
 }
