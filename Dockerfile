@@ -24,6 +24,7 @@ WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV DOTNET_URLS=http://0.0.0.0:8080
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "EcoTrack.WebApi.dll"]
 
