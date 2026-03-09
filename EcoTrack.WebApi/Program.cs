@@ -3,13 +3,13 @@ using EcoTrack.Core.Entities;
 using EcoTrack.Core.Enums;
 using EcoTrack.Infrastructure;
 using EcoTrack.Infrastructure.Persistence;
+using EcoTrack.WebApi.Configuration;
 using EcoTrack.WebApi.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,8 +64,8 @@ var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDat
     ?? builder.Configuration["ConnectionStrings__EcoTrackDatabase"];
 
 var normalizedConnectionString = string.IsNullOrWhiteSpace(rawConnectionString)
-    ? "Host=localhost;Port=5432;Database=placeholder;Username=placeholder;Password=placeholder;SSL Mode=Require;Trust Server Certificate=true"
-    : NormalizeConnectionString(rawConnectionString);
+    ? "Host=localhost;Port=5432;Database=placeholder;Username=placeholder;Password=placeholder;SSL Mode=Disable"
+    : ConnectionStringNormalizer.Normalize(rawConnectionString);
 
 builder.Services.AddInfrastructure(normalizedConnectionString);
 
@@ -109,37 +109,6 @@ app.MapHealthChecks("/health");
 app.MapGet("/", () => "Hi!");
 
 app.Run();
-
-static string NormalizeConnectionString(string value)
-{
-    var normalized = value.Trim().Trim('"').Trim('\'');
-    
-    normalized = Regex.Replace(normalized, @"([?&])channel_binding=[^&]*", string.Empty, RegexOptions.IgnoreCase);
-    
-    normalized = Regex.Replace(normalized, @"([?&])sslmode(?=(&|$))", "$1sslmode=require", RegexOptions.IgnoreCase);
-
-    if (normalized.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
-        normalized.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
-    {
-        if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
-        {
-            var userInfo = uri.UserInfo?.Split(':', 2, StringSplitOptions.None) ?? Array.Empty<string>();
-            var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
-            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
-            var database = uri.AbsolutePath.Trim('/');
-            var port = uri.IsDefaultPort ? 5432 : uri.Port;
-
-            if (!string.IsNullOrWhiteSpace(uri.Host) && !string.IsNullOrWhiteSpace(database))
-                return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
-        }
-    }
-
-    if (!normalized.Contains("SSL Mode", StringComparison.OrdinalIgnoreCase) &&
-        !normalized.Contains("sslmode", StringComparison.OrdinalIgnoreCase))
-        normalized += ";SSL Mode=Require;Trust Server Certificate=true";
-
-    return normalized;
-}
 
 static async Task SeedEmissionCategoriesAsync(EcoTrackDbContext dbContext)
 {

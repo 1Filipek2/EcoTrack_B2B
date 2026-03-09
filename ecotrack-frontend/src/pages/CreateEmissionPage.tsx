@@ -25,7 +25,7 @@ function getUnitHint(categoryName: string | undefined, defaultHelper: string): {
 export default function CreateEmissionPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [categories, setCategories] = useState<EmissionCategory[]>([]);
   const [categoryId, setCategoryId] = useState('');
@@ -43,13 +43,16 @@ export default function CreateEmissionPage() {
       try {
         const data = await categoriesApi.getAll();
         setCategories(data);
-        if (data.length > 0) setCategoryId(data[0].id);
+        setCategoryId((prev) => {
+          if (prev && data.some((c) => c.id === prev)) return prev;
+          return data.length > 0 ? data[0].id : '';
+        });
       } catch {
         setError(t('failedLoadCategories'));
       }
     };
     load();
-  }, [t]);
+  }, [locale]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

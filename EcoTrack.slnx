@@ -3,4 +3,5 @@
   <Project Path="EcoTrack.Core/EcoTrack.Core.csproj" />
   <Project Path="EcoTrack.Infrastructure/EcoTrack.Infrastructure.csproj" />
   <Project Path="EcoTrack.WebApi/EcoTrack.WebApi.csproj" />
+  <Project Path="EcoTrack.Tests/EcoTrack.Tests.csproj" />
 </Solution>
