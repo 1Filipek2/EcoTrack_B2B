@@ -1,7 +1,13 @@
 import axios from 'axios';
 
-// Default to local backend dev port from launchSettings when env var is not provided.
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5222/api';
+const rawApiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5222/api';
+
+function normalizeApiBaseUrl(url: string): string {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+
+const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
