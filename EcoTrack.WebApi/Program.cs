@@ -3,10 +3,13 @@ using EcoTrack.Core.Entities;
 using EcoTrack.Core.Enums;
 using EcoTrack.Infrastructure;
 using EcoTrack.Infrastructure.Persistence;
+using EcoTrack.WebApi.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,10 +23,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        // Get origins from config or use defaults for development
         var originsConfig = builder.Configuration["CorsOrigins"];
-        var origins = !string.IsNullOrEmpty(originsConfig)
-            ? originsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries)
+        var origins = !string.IsNullOrWhiteSpace(originsConfig)
+            ? originsConfig.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : new[] { "http://localhost:3000", "http://localhost:4200", "http://localhost:5173" };
 
         policy.WithOrigins(origins)
@@ -33,9 +35,12 @@ builder.Services.AddCors(options =>
     });
 });
 
-// JWT Authentication
+// JWT Authentication (fail fast if secret is missing in production)
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"] ?? "your-super-secret-key-min-32-chars-long-for-HS256";
+var secretKey = jwtSettings["SecretKey"];
+
+if (string.IsNullOrWhiteSpace(secretKey))
+    throw new InvalidOperationException("JwtSettings:SecretKey is required.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -53,18 +58,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-
 builder.Services.AddApplication();
 
-var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase");
+var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
+    ?? builder.Configuration["ConnectionStrings__EcoTrackDatabase"];
 
-var normalizedConnectionString = string.IsNullOrEmpty(rawConnectionString)
-    ? "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder"
+var normalizedConnectionString = string.IsNullOrWhiteSpace(rawConnectionString)
+    ? "Host=localhost;Port=5432;Database=placeholder;Username=placeholder;Password=placeholder;SSL Mode=Require;Trust Server Certificate=true"
     : NormalizeConnectionString(rawConnectionString);
 
 builder.Services.AddInfrastructure(normalizedConnectionString);
 
 var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 if (app.Environment.IsDevelopment())
 {
@@ -72,14 +82,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<ErrorHandlingMiddleware>();
+
 try
 {
-    using (var scope = app.Services.CreateScope())
-    {
-        var dbContext = scope.ServiceProvider.GetRequiredService<EcoTrackDbContext>();
-        await dbContext.Database.MigrateAsync();
-        await SeedEmissionCategoriesAsync(dbContext);
-    }
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<EcoTrackDbContext>();
+    await dbContext.Database.MigrateAsync();
+    await SeedEmissionCategoriesAsync(dbContext);
 }
 catch (Exception ex)
 {
@@ -87,55 +97,46 @@ catch (Exception ex)
 }
 
 app.UseCors("AllowFrontend");
-app.UseHttpsRedirection();
+
+// Redirect HTTPS only outside cloud reverse-proxy scenarios.
+if (!app.Environment.IsProduction())
+    app.UseHttpsRedirection();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
-
 app.MapGet("/", () => "Hi!");
 
 app.Run();
 
 static string NormalizeConnectionString(string value)
 {
-    if (string.IsNullOrWhiteSpace(value))
-        return "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder";
-
     var normalized = value.Trim().Trim('"').Trim('\'');
     
+    normalized = Regex.Replace(normalized, @"([?&])channel_binding=[^&]*", string.Empty, RegexOptions.IgnoreCase);
+    
+    normalized = Regex.Replace(normalized, @"([?&])sslmode(?=(&|$))", "$1sslmode=require", RegexOptions.IgnoreCase);
+
     if (normalized.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
         normalized.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
     {
         if (Uri.TryCreate(normalized, UriKind.Absolute, out var uri))
         {
             var userInfo = uri.UserInfo?.Split(':', 2, StringSplitOptions.None) ?? Array.Empty<string>();
-            var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
-            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+            var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
+            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
             var database = uri.AbsolutePath.Trim('/');
             var port = uri.IsDefaultPort ? 5432 : uri.Port;
 
             if (!string.IsNullOrWhiteSpace(uri.Host) && !string.IsNullOrWhiteSpace(database))
-            {
                 return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
-            }
         }
     }
 
-    // Fallback for key-value format; strip unsupported channel_binding parameter.
-    normalized = System.Text.RegularExpressions.Regex.Replace(
-        normalized,
-        @"[&?]channel_binding=\w+",
-        "",
-        System.Text.RegularExpressions.RegexOptions.IgnoreCase
-    );
-
-    if (normalized.EndsWith("?sslmode", StringComparison.OrdinalIgnoreCase))
-        normalized += "=require";
-
-    if (!normalized.Contains("sslmode", StringComparison.OrdinalIgnoreCase) &&
-        !normalized.Contains("SSL Mode", StringComparison.OrdinalIgnoreCase))
-        normalized += normalized.Contains("?", StringComparison.OrdinalIgnoreCase) ? "&sslmode=require" : ";SSL Mode=Require";
+    if (!normalized.Contains("SSL Mode", StringComparison.OrdinalIgnoreCase) &&
+        !normalized.Contains("sslmode", StringComparison.OrdinalIgnoreCase))
+        normalized += ";SSL Mode=Require;Trust Server Certificate=true";
 
     return normalized;
 }

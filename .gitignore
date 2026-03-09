@@ -80,3 +80,5 @@ docker-compose.override.yml
 *.user
 *.userosscache
 *.sln.docstates
+.vercel
+.env*.local
