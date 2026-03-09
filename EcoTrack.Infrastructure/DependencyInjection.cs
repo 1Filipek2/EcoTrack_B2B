@@ -18,6 +18,7 @@ public static class DependencyInjection
 
         services.AddScoped<IEcoTrackDbContext>(provider => provider.GetRequiredService<EcoTrackDbContext>());
         services.AddScoped<IAiExtractorService, AiExtractorService>();
+        services.AddScoped<IAuthService, AuthService>();
         
         return services;
     }

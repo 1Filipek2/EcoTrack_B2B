@@ -1,6 +1,9 @@
 using EcoTrack.Application.DTOs;
+using EcoTrack.Application.Features.Emissions.Commands.ProcessUnstructuredData;
 using EcoTrack.Application.Interfaces;
 using EcoTrack.Core.Entities;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,15 +11,18 @@ namespace EcoTrack.WebApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class EmissionsController : ControllerBase
 {
     private readonly IEcoTrackDbContext _context;
     private readonly ILogger<EmissionsController> _logger;
+    private readonly IMediator _mediator;
 
-    public EmissionsController(IEcoTrackDbContext context, ILogger<EmissionsController> logger)
+    public EmissionsController(IEcoTrackDbContext context, ILogger<EmissionsController> logger, IMediator mediator)
     {
         _context = context;
         _logger = logger;
+        _mediator = mediator;
     }
 
     [HttpPost]
@@ -27,7 +33,7 @@ public class EmissionsController : ControllerBase
             var company = await _context.Companies.FindAsync(request.CompanyId);
             if (company == null)
                 return BadRequest(new { error = $"Company with ID {request.CompanyId} not found" });
-            
+
             var category = await _context.EmissionCategories.FindAsync(request.CategoryId);
             if (category == null)
                 return BadRequest(new { error = $"Category with ID {request.CategoryId} not found" });
@@ -40,7 +46,7 @@ public class EmissionsController : ControllerBase
                 ReportDate = request.ReportedDate,
                 RawData = request.RawData
             };
-            
+
             emission.SetEmissionFactor(0.233m);
 
             _context.EmissionEntries.Add(emission);
@@ -65,6 +71,16 @@ public class EmissionsController : ControllerBase
         }
     }
 
+    [HttpPost("process-unstructured")]
+    public async Task<ActionResult<Guid>> ProcessUnstructured([FromBody] ProcessUnstructuredEmissionRequest request, CancellationToken cancellationToken)
+    {
+        var emissionId = await _mediator.Send(
+            new ProcessUnstructuredDataCommand(request.CompanyId, request.RawText, request.ReportedDate),
+            cancellationToken);
+
+        return CreatedAtAction(nameof(GetEmission), new { id = emissionId }, emissionId);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<EmissionDto>> GetEmission(Guid id)
     {
@@ -72,7 +88,7 @@ public class EmissionsController : ControllerBase
             .Include(e => e.Company)
             .Include(e => e.Category)
             .FirstOrDefaultAsync(e => e.Id == id);
-        
+
         if (emission == null)
             return NotFound();
 
@@ -90,11 +106,17 @@ public class EmissionsController : ControllerBase
     }
 
     [HttpGet]
-    public ActionResult<IEnumerable<EmissionDto>> GetEmissions()
+    public async Task<ActionResult<PagedResult<EmissionDto>>> GetEmissions([FromQuery] PaginationParams pagination)
     {
-        var emissions = _context.EmissionEntries
+        var query = _context.EmissionEntries
             .Include(e => e.Company)
-            .Include(e => e.Category)
+            .Include(e => e.Category);
+        
+        var totalCount = await query.CountAsync();
+        
+        var emissions = await query
+            .Skip((pagination.PageNumber - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
             .Select(e => new EmissionDto
             {
                 Id = e.Id,
@@ -104,9 +126,17 @@ public class EmissionsController : ControllerBase
                 Co2Equivalent = e.Co2Equivalent,
                 ReportDate = e.ReportDate
             })
-            .ToList();
+            .ToListAsync();
 
-        return Ok(emissions);
+        var result = new PagedResult<EmissionDto>
+        {
+            Items = emissions,
+            TotalCount = totalCount,
+            PageNumber = pagination.PageNumber,
+            PageSize = pagination.PageSize
+        };
+
+        return Ok(result);
     }
 }
 
@@ -119,4 +149,9 @@ public class CreateEmissionRequest
     public string RawData { get; set; } = string.Empty;
 }
 
-
+public class ProcessUnstructuredEmissionRequest
+{
+    public Guid CompanyId { get; set; }
+    public string RawText { get; set; } = string.Empty;
+    public DateTimeOffset? ReportedDate { get; set; }
+}

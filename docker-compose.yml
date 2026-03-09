@@ -31,6 +31,19 @@ services:
       timeout: 3s
       retries: 20
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ecotrack-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   api:
     build:
       context: .
@@ -41,6 +54,14 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__EcoTrackDatabase: Host=postgres;Port=5432;Database=EcoTrackDb;Username=postgres;Password=postgres
       Redis__ConnectionString: redis:6379
+      Ai__Provider: ${AI_PROVIDER:-OpenAI}
+      Ai__Model: ${AI_MODEL:-gpt-4o-mini}
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      AzureOpenAI__Endpoint: ${AZURE_OPENAI_ENDPOINT:-}
+      AzureOpenAI__ApiKey: ${AZURE_OPENAI_API_KEY:-}
+      AzureOpenAI__DeploymentName: ${AZURE_OPENAI_DEPLOYMENT:-}
+      Ollama__BaseUrl: http://ollama:11434
+      Ollama__Model: ${OLLAMA_MODEL:-llama3.2}
     ports:
       - "8080:8080"
     depends_on:
@@ -48,6 +69,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8080/health"]
       interval: 10s
@@ -57,3 +80,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  ollama_data:

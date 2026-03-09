@@ -52,3 +52,24 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Sensitive configuration files
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.Development.json.example
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Docker secrets
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates

@@ -1,12 +1,14 @@
 using EcoTrack.Application.Interfaces;
 using EcoTrack.Core.Entities;
 using EcoTrack.Core.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EcoTrack.WebApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class EmissionCategoriesController : ControllerBase
 {
     private readonly IEcoTrackDbContext _context;

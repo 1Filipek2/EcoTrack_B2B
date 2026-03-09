@@ -1,6 +1,7 @@
 using EcoTrack.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Pgvector;
 using Pgvector.EntityFrameworkCore;
 
 namespace EcoTrack.Infrastructure.Persistence.Configurations;
@@ -18,8 +19,8 @@ public class EmissionEntryConfiguration : IEntityTypeConfiguration<EmissionEntry
         builder.Property(e => e.RawData)
             .HasMaxLength(2000);
         
-        builder.Property<byte[]>("Embedding")
-            .HasColumnType("vector(1536)"); // pgvector placeholder for future ai vectors
+        builder.Property<Vector>("Embedding")
+            .HasColumnType("vector(1536)"); 
         
         builder.HasOne(e => e.Company)
             .WithMany(c => c.EmissionEntries)

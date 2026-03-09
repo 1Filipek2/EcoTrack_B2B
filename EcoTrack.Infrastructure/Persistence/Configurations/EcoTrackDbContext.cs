@@ -13,6 +13,7 @@ public class EcoTrackDbContext : DbContext, IEcoTrackDbContext
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<EmissionCategory> EmissionCategories => Set<EmissionCategory>();
     public DbSet<EmissionEntry> EmissionEntries => Set<EmissionEntry>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
