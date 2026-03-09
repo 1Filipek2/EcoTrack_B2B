@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: ecotrack-b2b-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__EcoTrackDatabase
+        sync: false
+      - key: JwtSettings__SecretKey
+        sync: false
+      - key: CorsOrigins
+        sync: false
+
