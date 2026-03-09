@@ -4,26 +4,28 @@ import axios from 'axios';
 import { categoriesApi, emissionsApi } from '../api';
 import { useAuthStore } from '../store/authStore';
 import type { EmissionCategory } from '../types/api';
+import { useI18n } from '../i18n';
 
-const CATEGORY_UNIT_HINTS: Array<{ match: RegExp; unit: string; helper: string }> = [
-  { match: /electric/i, unit: 'kWh', helper: 'Electricity is typically tracked in kilowatt-hours.' },
-  { match: /natural gas|gas/i, unit: 'm3', helper: 'Natural gas is usually entered in cubic meters.' },
-  { match: /fleet fuel|fuel|diesel|petrol|benzin/i, unit: 'liters', helper: 'Fuel usage is typically tracked in liters.' },
-  { match: /business travel|employee commuting|travel|transport/i, unit: 'km', helper: 'Travel is usually tracked by distance in kilometers.' },
-  { match: /water/i, unit: 'm3', helper: 'Water consumption is usually tracked in cubic meters.' },
-  { match: /waste/i, unit: 'kg', helper: 'Waste is commonly tracked in kilograms.' },
-  { match: /purchased goods/i, unit: 'kg', helper: 'Purchased goods can be tracked by material weight.' },
+const CATEGORY_UNIT_HINTS: Array<{ match: RegExp; unit: string }> = [
+  { match: /electric/i, unit: 'kWh' },
+  { match: /natural gas|gas/i, unit: 'm3' },
+  { match: /fleet fuel|fuel|diesel|petrol|benzin/i, unit: 'liters' },
+  { match: /business travel|employee commuting|travel|transport/i, unit: 'km' },
+  { match: /water/i, unit: 'm3' },
+  { match: /waste/i, unit: 'kg' },
+  { match: /purchased goods/i, unit: 'kg' },
 ];
 
-function getUnitHint(categoryName?: string): { unit: string; helper: string } {
-  if (!categoryName) return { unit: 'units', helper: 'Use the unit appropriate for the selected category.' };
+function getUnitHint(categoryName: string | undefined, defaultHelper: string): { unit: string; helper: string } {
+  if (!categoryName) return { unit: 'units', helper: defaultHelper };
   const found = CATEGORY_UNIT_HINTS.find((x) => x.match.test(categoryName));
-  return found ?? { unit: 'units', helper: 'Use the unit appropriate for the selected category.' };
+  return { unit: found?.unit ?? 'units', helper: defaultHelper };
 }
 
 export default function CreateEmissionPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { t } = useI18n();
 
   const [categories, setCategories] = useState<EmissionCategory[]>([]);
   const [categoryId, setCategoryId] = useState('');
@@ -43,23 +45,23 @@ export default function CreateEmissionPage() {
         setCategories(data);
         if (data.length > 0) setCategoryId(data[0].id);
       } catch {
-        setError('Failed to load categories.');
+        setError(t('failedLoadCategories'));
       }
     };
     load();
-  }, []);
+  }, [t]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (!companyId) {
-      setError('Your account is not linked to a company.');
+      setError(t('accountNotLinked'));
       return;
     }
 
     if (!hasCategories) {
-      setError('No emission categories available yet. Please refresh after backend seeding.');
+      setError(t('noCategoriesAvailable'));
       return;
     }
 
@@ -75,9 +77,9 @@ export default function CreateEmissionPage() {
       navigate(`/dashboard`, { replace: true, state: { createdEmissionId: created.id } });
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
-        setError((err.response?.data as { error?: string } | undefined)?.error || 'Failed to create emission.');
+        setError((err.response?.data as { error?: string } | undefined)?.error || t('failedCreateEmission'));
       } else {
-        setError('Failed to create emission.');
+        setError(t('failedCreateEmission'));
       }
     } finally {
       setLoading(false);
@@ -85,16 +87,17 @@ export default function CreateEmissionPage() {
   };
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
-  const unitHint = getUnitHint(selectedCategory?.name);
+  const unitHint = getUnitHint(selectedCategory?.name, t('unitHelperDefault'));
+  const unitLabel = unitHint.unit === 'units' ? t('units') : unitHint.unit;
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
       <div className="max-w-3xl mx-auto card">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Create Emission Entry</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('createEmission')}</h1>
 
         {!hasCategories && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            Categories are empty. Restart backend once to trigger default category seed.
+            {t('categoriesEmptyRestart')}
           </div>
         )}
 
@@ -102,7 +105,7 @@ export default function CreateEmissionPage() {
 
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('category')}</label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
@@ -110,7 +113,7 @@ export default function CreateEmissionPage() {
               disabled={!hasCategories}
               required
             >
-              {!hasCategories && <option value="">No categories available</option>}
+              {!hasCategories && <option value="">{t('noCategoriesOption')}</option>}
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -119,7 +122,7 @@ export default function CreateEmissionPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Amount ({unitHint.unit})</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('amount')} ({unitLabel})</label>
               <input
                 className="input-field"
                 type="number"
@@ -127,25 +130,30 @@ export default function CreateEmissionPage() {
                 step="0.01"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder={`Enter value in ${unitHint.unit}`}
+                placeholder={`${t('enterValueIn')} ${unitLabel}`}
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">{unitHint.helper}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Reported Date</label>
-              <input className="input-field" type="datetime-local" value={reportedDate} onChange={(e) => setReportedDate(e.target.value)} required />
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('reportedDate')}</label>
+              <input
+                className="input-field !w-auto min-w-[220px] max-w-full"
+                type="datetime-local"
+                value={reportedDate}
+                onChange={(e) => setReportedDate(e.target.value)}
+                required
+              />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Raw Data Note</label>
-            <textarea className="input-field min-h-32" value={rawData} onChange={(e) => setRawData(e.target.value)} placeholder="Example: Company used 100 kWh electricity" required />
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('rawDataNote')}</label>
+            <textarea className="input-field min-h-32" value={rawData} onChange={(e) => setRawData(e.target.value)} placeholder={t('aiTextExample')} required />
           </div>
 
           <div className="flex gap-3">
-            <button type="submit" disabled={loading || !hasCategories} className="btn-primary disabled:opacity-50">{loading ? 'Saving...' : 'Save Emission'}</button>
-            <button type="button" className="btn-secondary" onClick={() => navigate('/dashboard')}>Cancel</button>
+            <button type="submit" disabled={loading || !hasCategories} className="btn-primary disabled:opacity-50">{loading ? t('saving') : t('saveEmission')}</button>
+            <button type="button" className="btn-secondary" onClick={() => navigate('/dashboard')}>{t('cancel')}</button>
           </div>
         </form>
       </div>
