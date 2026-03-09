@@ -68,11 +68,19 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-using (var scope = app.Services.CreateScope())
+// Apply migrations and seed data (with error handling for Railway startup)
+try
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<EcoTrackDbContext>();
-    await dbContext.Database.MigrateAsync();
-    await SeedEmissionCategoriesAsync(dbContext);
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<EcoTrackDbContext>();
+        await dbContext.Database.MigrateAsync();
+        await SeedEmissionCategoriesAsync(dbContext);
+    }
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Failed to run migrations or seed data. App will continue without DB.");
 }
 
 app.UseCors("AllowFrontend");
