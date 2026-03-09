@@ -22,9 +22,7 @@ RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 EXPOSE 8080
-ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV DOTNET_URLS=http://0.0.0.0:8080
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "EcoTrack.WebApi.dll"]
-
+# Use runtime shell expansion so Railway PORT is honored; fallback to 8080 for local runs.
+ENTRYPOINT ["sh", "-c", "ASPNETCORE_URLS=http://0.0.0.0:${PORT:-8080} dotnet EcoTrack.WebApi.dll"]
