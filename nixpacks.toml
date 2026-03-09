@@ -1,0 +1,19 @@
+[variables]
+NIXPACKS_DOTNET_SDK_VERSION = "10.0"
+
+[phases.setup]
+nixPkgs = ["dotnet-sdk_10"]
+
+[phases.install]
+cmds = [
+  "dotnet restore EcoTrack.WebApi/EcoTrack.WebApi.csproj"
+]
+
+[phases.build]
+cmds = [
+  "dotnet publish EcoTrack.WebApi/EcoTrack.WebApi.csproj -c Release -o out /p:UseAppHost=false"
+]
+
+[start]
+cmd = "dotnet out/EcoTrack.WebApi.dll"
+
