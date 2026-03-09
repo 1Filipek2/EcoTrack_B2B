@@ -56,8 +56,9 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddApplication();
 
-var connectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
+var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
     ?? "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder";
+var connectionString = NormalizeConnectionString(rawConnectionString);
 builder.Services.AddInfrastructure(connectionString);
 
 var app = builder.Build();
@@ -93,6 +94,19 @@ app.MapHealthChecks("/health");
 app.MapGet("/", () => "Hi!");
 
 app.Run();
+
+static string NormalizeConnectionString(string value)
+{
+    var normalized = value.Trim().Trim('"');
+
+    // Common copy/paste issue from managed DB UIs.
+    normalized = normalized.Replace("&channel_binding=require", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+    if (normalized.EndsWith("?sslmode", StringComparison.OrdinalIgnoreCase))
+        normalized += "=require";
+
+    return normalized;
+}
 
 static async Task SeedEmissionCategoriesAsync(EcoTrackDbContext dbContext)
 {
