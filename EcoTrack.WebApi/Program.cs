@@ -57,7 +57,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddApplication();
 
 var connectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
-    ?? throw new InvalidOperationException("Connection string 'EcoTrackDatabase' not found.");
+    ?? "Host=localhost;Database=placeholder;Username=placeholder;Password=placeholder";
 builder.Services.AddInfrastructure(connectionString);
 
 var app = builder.Build();
