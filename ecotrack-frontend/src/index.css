@@ -23,3 +23,35 @@
     @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
   }
 }
+
+@layer utilities {
+  @keyframes slideInFromTop {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideOutToTop {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+  }
+
+  .animate-slide-in-top {
+    animation: slideInFromTop 0.5s ease-out forwards;
+  }
+
+  .animate-slide-out-top {
+    animation: slideOutToTop 0.5s ease-in forwards;
+  }
+}

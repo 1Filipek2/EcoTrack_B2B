@@ -98,4 +98,49 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { error = "An error occurred while linking company." });
         }
     }
+
+    [Authorize]
+    [HttpDelete("me")]
+    public async Task<ActionResult> DeleteMyAccount(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userIdClaim) || Guid.TryParse(userIdClaim, out var userId) == false)
+                return Unauthorized(new { error = "Invalid user token." });
+
+            var (success, message) = await _authService.DeleteAccountAsync(userId, cancellationToken);
+            if (!success)
+                return BadRequest(new { error = message });
+
+            return Ok(new { message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting account");
+            return StatusCode(500, new { error = "An error occurred while deleting account." });
+        }
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<ActionResult> VerifyEmail([FromBody] VerifyEmailRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (success, message) = await _authService.VerifyEmailAsync(
+                request.Email, 
+                request.VerificationCode, 
+                cancellationToken);
+
+            if (!success)
+                return BadRequest(new { error = message });
+
+            return Ok(new { message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during email verification");
+            return StatusCode(500, new { error = "An error occurred during verification." });
+        }
+    }
 }

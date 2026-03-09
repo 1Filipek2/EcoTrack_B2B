@@ -29,6 +29,16 @@ export const authApi = {
     const response = await apiClient.post<AuthResponse>('/auth/link-company', data);
     return response.data;
   },
+
+  deleteMe: async (): Promise<{ message: string }> => {
+    const response = await apiClient.delete('/auth/me');
+    return response.data;
+  },
+
+  verifyEmail: async (email: string, verificationCode: string): Promise<{ message: string }> => {
+    const response = await apiClient.post('/auth/verify-email', { email, verificationCode });
+    return response.data;
+  },
 };
 
 // Companies API

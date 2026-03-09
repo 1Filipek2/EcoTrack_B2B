@@ -4,18 +4,23 @@ import {
   BarChart3,
   TrendingUp,
   Leaf,
-  LogOut,
   Plus,
   Building2,
+  Info,
+  ChevronDown,
 } from 'lucide-react';
 import axios from 'axios';
 import { authApi, companiesApi, emissionsApi } from '../api';
 import { useAuthStore } from '../store/authStore';
-import type { SustainabilityReport, PagedResult, EmissionEntry } from '../types/api';
+import type { Company, SustainabilityReport, PagedResult, EmissionEntry } from '../types/api';
+import LanguageSwitch from '../components/LanguageSwitch';
+import MobileMenu from '../components/MobileMenu';
+import { useI18n } from '../i18n';
 
 export default function DashboardPage() {
   const { user, logout, updateAuth } = useAuthStore();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [report, setReport] = useState<SustainabilityReport | null>(null);
   const [emissions, setEmissions] = useState<PagedResult<EmissionEntry> | null>(null);
@@ -24,6 +29,11 @@ export default function DashboardPage() {
   const [companyName, setCompanyName] = useState('');
   const [vatNumber, setVatNumber] = useState('');
   const [linking, setLinking] = useState(false);
+  const [company, setCompany] = useState<Company | null>(null);
+  const [expandedEmissionId, setExpandedEmissionId] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [hideWelcome, setHideWelcome] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -32,8 +42,12 @@ export default function DashboardPage() {
         setEmissions(emissionsData);
 
         if (user?.companyId) {
-          const reportData = await companiesApi.getSustainabilityReport(user.companyId);
+          const [reportData, companyData] = await Promise.all([
+            companiesApi.getSustainabilityReport(user.companyId),
+            companiesApi.getById(user.companyId),
+          ]);
           setReport(reportData);
+          setCompany(companyData);
         } else {
           // Admin users may not be linked to a specific company.
           setReport({
@@ -43,6 +57,7 @@ export default function DashboardPage() {
             scope2: 0,
             scope3: 0,
           });
+          setCompany(null);
         }
       } catch (error) {
         console.error('Failed to load data:', error);
@@ -53,6 +68,27 @@ export default function DashboardPage() {
 
     loadData();
   }, [user?.companyId]);
+
+  useEffect(() => {
+    if (sessionStorage.getItem('showWelcomeOnce') === '1') {
+      setShowWelcome(true);
+      sessionStorage.removeItem('showWelcomeOnce');
+
+      const hideTimer = setTimeout(() => {
+        setHideWelcome(true);
+      }, 1500);
+
+      const removeTimer = setTimeout(() => {
+        setShowWelcome(false);
+        setHideWelcome(false);
+      }, 2000);
+
+      return () => {
+        clearTimeout(hideTimer);
+        clearTimeout(removeTimer);
+      };
+    }
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -81,6 +117,26 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('Do you really want to delete your account? This action cannot be undone.'))
+      return;
+
+    setDeletingAccount(true);
+    try {
+      await authApi.deleteMe();
+      logout();
+      navigate('/login');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        alert((err.response?.data as { error?: string } | undefined)?.error || 'Failed to delete account.');
+      } else {
+        alert('Failed to delete account.');
+      }
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -91,142 +147,201 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {showWelcome && (
+        <div className={`fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 ${hideWelcome ? 'animate-slide-out-top' : 'animate-slide-in-top'}`}>
+          <div className="px-4 sm:px-6 py-2 sm:py-3 rounded-full bg-emerald-600 text-white shadow-lg font-semibold text-sm sm:text-base whitespace-nowrap">
+            {t('welcome')}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-                <Leaf className="w-6 h-6 text-white" />
+          <div className="flex justify-between items-center py-3 sm:py-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1">
+              <div className="w-8 sm:w-10 h-8 sm:h-10 bg-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Leaf className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">EcoTrack B2B</h1>
-                <p className="text-sm text-gray-600">{user?.email}</p>
+              <div className="min-w-0">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900">{t('appName')}</h1>
+                <p className="text-xs sm:text-sm text-gray-600 truncate">{user?.email}</p>
               </div>
             </div>
-            
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
+
+            {/* Desktop Menu */}
+            <div className="hidden sm:flex items-center gap-2">
+              <LanguageSwitch />
+
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="flex items-center gap-1 px-3 sm:px-4 py-2 text-xs sm:text-sm text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              >
+                <span>{deletingAccount ? t('deleting') : t('deleteAccount')}</span>
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1 px-2 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <span>{t('logout')}</span>
+              </button>
+            </div>
+
+            {/* Mobile Menu */}
+            <MobileMenu onLogout={handleLogout} onDelete={handleDeleteAccount} deletingAccount={deletingAccount} />
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        {company && (
+          <div className="card mb-4 sm:mb-6 border-emerald-200 bg-emerald-50/40">
+            <p className="text-xs sm:text-sm text-gray-600">{t('linkedCompany')}</p>
+            <p className="text-base sm:text-lg font-semibold text-gray-900 mt-1">{company.name}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">{t('vat')}: {company.vatNumber}</p>
+          </div>
+        )}
+
         {!user?.companyId && (
-          <div className="card mb-8 border-emerald-200 bg-emerald-50/40">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700">
-                <Building2 className="w-5 h-5" />
+          <div className="card mb-6 sm:mb-8 border-emerald-200 bg-emerald-50/40">
+            <div className="flex gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <div className="p-2 rounded-lg bg-emerald-100 text-emerald-700 flex-shrink-0">
+                <Building2 className="w-4 sm:w-5 h-4 sm:h-5" />
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">Link Your Account to a Company</h2>
-                <p className="text-sm text-gray-600">You need a linked company before creating emissions.</p>
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-lg font-semibold text-gray-900">{t('linkAccountTitle')}</h2>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5">{t('linkAccountDesc')}</p>
               </div>
             </div>
 
             {linkError && (
-              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{linkError}</div>
+              <div className="mb-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg text-xs sm:text-sm text-red-700">{linkError}</div>
             )}
 
-            <form onSubmit={handleCreateAndLinkCompany} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <form onSubmit={handleCreateAndLinkCompany} className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
               <input
-                className="input-field"
-                placeholder="Company name"
+                className="input-field text-xs sm:text-sm py-2 sm:py-2.5"
+                placeholder={t('companyName')}
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 required
               />
               <input
-                className="input-field"
-                placeholder="VAT number"
+                className="input-field text-xs sm:text-sm py-2 sm:py-2.5"
+                placeholder={t('vatNumber')}
                 value={vatNumber}
                 onChange={(e) => setVatNumber(e.target.value)}
                 required
               />
-              <button type="submit" className="btn-primary disabled:opacity-50" disabled={linking}>
-                {linking ? 'Linking...' : 'Create & Link Company'}
+              <button type="submit" className="btn-primary text-xs sm:text-sm py-2 sm:py-2.5 disabled:opacity-50" disabled={linking}>
+                {linking ? t('linking') : t('createAndLink')}
               </button>
             </form>
           </div>
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 sm:gap-6 mb-4 sm:mb-6">
           <StatsCard
-            title="Total Emissions"
+            title={t('totalEmissions')}
             value={`${report?.totalEmissions.toFixed(2) || 0} kg`}
-            icon={<TrendingUp className="w-6 h-6" />}
+            icon={<TrendingUp className="w-4 sm:w-6 h-4 sm:h-6" />}
             color="bg-blue-500"
           />
           <StatsCard
-            title="Scope 1"
+            title={t('scope1')}
             value={`${report?.scope1.toFixed(2) || 0} kg`}
-            icon={<BarChart3 className="w-6 h-6" />}
+            icon={<BarChart3 className="w-4 sm:w-6 h-4 sm:h-6" />}
             color="bg-red-500"
           />
           <StatsCard
-            title="Scope 2"
+            title={t('scope2')}
             value={`${report?.scope2.toFixed(2) || 0} kg`}
-            icon={<BarChart3 className="w-6 h-6" />}
+            icon={<BarChart3 className="w-4 sm:w-6 h-4 sm:h-6" />}
             color="bg-yellow-500"
           />
           <StatsCard
-            title="Scope 3"
+            title={t('scope3')}
             value={`${report?.scope3.toFixed(2) || 0} kg`}
-            icon={<BarChart3 className="w-6 h-6" />}
+            icon={<BarChart3 className="w-4 sm:w-6 h-4 sm:h-6" />}
             color="bg-green-500"
           />
         </div>
 
+        <div className="card mb-6 sm:mb-8 border-blue-100 bg-blue-50/40">
+          <div className="flex gap-2 sm:gap-3">
+            <Info className="w-4 sm:w-5 h-4 sm:h-5 text-blue-700 mt-0.5 flex-shrink-0" />
+            <div className="text-xs sm:text-sm text-gray-700 space-y-1">
+              <p><strong>{t('scope1')}:</strong> {t('scope1Help')}</p>
+              <p><strong>{t('scope2')}:</strong> {t('scope2Help')}</p>
+              <p><strong>{t('scope3')}:</strong> {t('scope3Help')}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mb-6 sm:mb-8">
           <ActionCard
-            title="Add Emission Entry"
-            description="Record a new emission manually"
-            icon={<Plus className="w-6 h-6" />}
+            title={t('addEmissionEntry')}
+            description={t('addEmissionDesc')}
+            icon={<Plus className="w-5 sm:w-6 h-5 sm:h-6" />}
             onClick={() => navigate('/emissions/create')}
           />
           <ActionCard
-            title="AI Text Extraction"
-            description="Extract emissions from text using AI"
-            icon={<Leaf className="w-6 h-6" />}
+            title={t('aiExtraction')}
+            description={t('aiExtractionDesc')}
+            icon={<Leaf className="w-5 sm:w-6 h-5 sm:h-6" />}
             onClick={() => navigate('/emissions/ai')}
           />
         </div>
 
         {/* Recent Emissions */}
         <div className="card">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent Emissions</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">{t('recentEmissions')}</h2>
           {emissions && emissions.items.length > 0 ? (
-            <div className="space-y-3">
-              {emissions.items.map((emission) => (
-                <div
-                  key={emission.id}
-                  className="flex justify-between items-center p-4 bg-gray-50 rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium text-gray-900">{emission.category}</p>
-                    <p className="text-sm text-gray-600">
-                      {new Date(emission.reportDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">
-                      {emission.co2Equivalent.toFixed(2)} kg CO₂
-                    </p>
-                    <p className="text-sm text-gray-600">{emission.amount} units</p>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-2 sm:space-y-3">
+              {emissions.items.map((emission) => {
+                const expanded = expandedEmissionId === emission.id;
+                return (
+                  <button
+                    type="button"
+                    key={emission.id}
+                    onClick={() => setExpandedEmissionId(expanded ? null : emission.id)}
+                    className="w-full text-left flex flex-col gap-2 p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start sm:items-center gap-2 flex-col sm:flex-row">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm sm:text-base text-gray-900">{emission.category}</p>
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          {new Date(emission.reportDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 sm:gap-3 flex-1 sm:flex-none justify-between sm:justify-end">
+                        <div className="text-right">
+                          <p className="font-semibold text-sm sm:text-base text-gray-900">
+                            {emission.co2Equivalent.toFixed(2)} kg CO₂
+                          </p>
+                          <p className="text-xs sm:text-sm text-gray-600">{emission.amount} units</p>
+                        </div>
+                        <ChevronDown className={`w-4 sm:w-5 h-4 sm:h-5 text-gray-500 transition-transform duration-300 flex-shrink-0 ${expanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+
+                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                      <div className="pt-2 text-xs sm:text-sm text-gray-600 border-t border-gray-200 mt-1">
+                        {emission.rawData}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            <p className="text-gray-600 text-center py-8">No emissions recorded yet</p>
+            <p className="text-gray-600 text-center py-6 sm:py-8 text-sm sm:text-base">{t('noEmissions')}</p>
           )}
         </div>
       </main>
@@ -246,12 +361,12 @@ function StatsCard({
   color: string 
 }) {
   return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        <div className={`${color} p-2 rounded-lg text-white`}>{icon}</div>
+    <div className="card p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+        <p className="text-xs sm:text-sm font-medium text-gray-600 line-clamp-2">{title}</p>
+        <div className={`${color} p-1.5 sm:p-2 rounded-lg text-white flex-shrink-0`}>{icon}</div>
       </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-lg sm:text-2xl font-bold text-gray-900">{value}</p>
     </div>
   );
 }
@@ -270,15 +385,15 @@ function ActionCard({
   return (
     <button
       onClick={onClick}
-      className="card text-left hover:shadow-md transition-shadow group"
+      className="card text-left hover:shadow-md transition-shadow group cursor-pointer p-4 sm:p-6"
     >
-      <div className="flex items-start space-x-4">
-        <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+      <div className="flex gap-3 sm:gap-4">
+        <div className="bg-emerald-100 p-2 sm:p-3 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors flex-shrink-0">
           {icon}
         </div>
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
-          <p className="text-sm text-gray-600">{description}</p>
+        <div className="min-w-0">
+          <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-0.5 sm:mb-1">{title}</h3>
+          <p className="text-xs sm:text-sm text-gray-600">{description}</p>
         </div>
       </div>
     </button>
