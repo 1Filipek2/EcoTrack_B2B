@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="EcoTrack.Application/EcoTrack.Application.csproj" />
+  <Project Path="EcoTrack.Core/EcoTrack.Core.csproj" />
+  <Project Path="EcoTrack.Infrastructure/EcoTrack.Infrastructure.csproj" />
+  <Project Path="EcoTrack.WebApi/EcoTrack.WebApi.csproj" />
+</Solution>

@@ -26,6 +26,7 @@ public class AiExtractorService : IAiExtractorService
     private readonly string _provider;
     private readonly string _ollamaBaseUrl;
     private readonly string _ollamaModel;
+    private readonly string _connectionString;
 
     public AiExtractorService(
         EcoTrackDbContext dbContext,
@@ -37,6 +38,8 @@ public class AiExtractorService : IAiExtractorService
         _provider = configuration["Ai:Provider"]?.Trim().ToLowerInvariant() ?? "none";
         _ollamaBaseUrl = configuration["Ollama:BaseUrl"] ?? "http://localhost:11434";
         _ollamaModel = configuration["Ollama:Model"] ?? "llama3.2";
+        _connectionString = configuration.GetConnectionString("EcoTrackDatabase")
+            ?? throw new InvalidOperationException("Connection string 'EcoTrackDatabase' not found.");
         _kernel = BuildKernel(configuration, logger, _provider);
     }
 
@@ -208,54 +211,68 @@ Input:
         if (categories.Count == 0)
             return;
 
-        await using var connection = new NpgsqlConnection(_dbContext.Database.GetConnectionString());
-        await connection.OpenAsync(cancellationToken);
-
-        foreach (var category in categories)
+        try
         {
-            var embeddingText = ToPgVectorLiteral(CreateDeterministicEmbedding($"{category.Name} {category.Description}"));
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
 
-            await using var command = new NpgsqlCommand(
-                """
-                UPDATE "EmissionCategories"
-                SET "Embedding" = CAST(@embedding AS vector)
-                WHERE "Id" = @id AND "Embedding" IS NULL
-                """,
-                connection);
+            foreach (var category in categories)
+            {
+                var embeddingText = ToPgVectorLiteral(CreateDeterministicEmbedding($"{category.Name} {category.Description}"));
 
-            command.Parameters.Add(new NpgsqlParameter("id", category.Id));
-            command.Parameters.Add(new NpgsqlParameter("embedding", embeddingText));
-            await command.ExecuteNonQueryAsync(cancellationToken);
+                await using var command = new NpgsqlCommand(
+                    """
+                    UPDATE "EmissionCategories"
+                    SET "Embedding" = CAST(@embedding AS vector)
+                    WHERE "Id" = @id AND "Embedding" IS NULL
+                    """,
+                    connection);
+
+                command.Parameters.Add(new NpgsqlParameter("id", category.Id));
+                command.Parameters.Add(new NpgsqlParameter("embedding", embeddingText));
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Embedding initialization failed. Continuing without vector search.");
         }
     }
 
     private async Task<CategoryMatch?> FindClosestCategoryAsync(string categoryText, CancellationToken cancellationToken)
     {
-        var queryEmbedding = ToPgVectorLiteral(CreateDeterministicEmbedding(categoryText));
-
-        await using var connection = new NpgsqlConnection(_dbContext.Database.GetConnectionString());
-        await connection.OpenAsync(cancellationToken);
-
-        await using var command = new NpgsqlCommand(
-            """
-            SELECT "Id", "Name", ("Embedding" <-> CAST(@embedding AS vector)) AS distance
-            FROM "EmissionCategories"
-            WHERE "Embedding" IS NOT NULL
-            ORDER BY "Embedding" <-> CAST(@embedding AS vector)
-            LIMIT 1
-            """,
-            connection);
-
-        command.Parameters.Add(new NpgsqlParameter("embedding", queryEmbedding));
-
-        await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken);
-        if (await reader.ReadAsync(cancellationToken))
+        try
         {
-            var distance = reader.GetDouble(2);
-            return new CategoryMatch(
-                reader.GetGuid(0),
-                reader.GetString(1),
-                Math.Max(0, 1 - distance));
+            var queryEmbedding = ToPgVectorLiteral(CreateDeterministicEmbedding(categoryText));
+
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            await using var command = new NpgsqlCommand(
+                """
+                SELECT "Id", "Name", ("Embedding" <-> CAST(@embedding AS vector)) AS distance
+                FROM "EmissionCategories"
+                WHERE "Embedding" IS NOT NULL
+                ORDER BY "Embedding" <-> CAST(@embedding AS vector)
+                LIMIT 1
+                """,
+                connection);
+
+            command.Parameters.Add(new NpgsqlParameter("embedding", queryEmbedding));
+
+            await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                var distance = reader.GetDouble(2);
+                return new CategoryMatch(
+                    reader.GetGuid(0),
+                    reader.GetString(1),
+                    Math.Max(0, 1 - distance));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Vector category search failed. Falling back to name-based search.");
         }
 
         var fallback = await _dbContext.EmissionCategories
