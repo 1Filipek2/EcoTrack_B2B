@@ -21,3 +21,7 @@ public class AuthResponse
     public Guid? CompanyId { get; set; }
 }
 
+public class LinkCompanyRequest
+{
+    public Guid CompanyId { get; set; }
+}

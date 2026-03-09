@@ -1,6 +1,8 @@
 using EcoTrack.Application.DTOs;
 using EcoTrack.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace EcoTrack.WebApi.Controllers;
 
@@ -67,5 +69,33 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { error = "An error occurred during registration." });
         }
     }
-}
 
+    [Authorize]
+    [HttpPost("link-company")]
+    public async Task<ActionResult<AuthResponse>> LinkCompany([FromBody] LinkCompanyRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userIdClaim) || Guid.TryParse(userIdClaim, out var userId) == false)
+                return Unauthorized(new { error = "Invalid user token." });
+
+            var (success, token, email, role, companyId, message) = await _authService.LinkCompanyAsync(userId, request.CompanyId, cancellationToken);
+            if (!success)
+                return BadRequest(new { error = message });
+
+            return Ok(new AuthResponse
+            {
+                Token = token,
+                Email = email,
+                Role = role,
+                CompanyId = companyId
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error linking company to user");
+            return StatusCode(500, new { error = "An error occurred while linking company." });
+        }
+    }
+}

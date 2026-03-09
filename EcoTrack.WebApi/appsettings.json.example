@@ -1,6 +1,6 @@
 {
   "ConnectionStrings": {
-    "EcoTrackDatabase": "Host=localhost;Port=5435;Database=EcoTrackDb;Username=postgres;Password=YOUR_PASSWORD_HERE"
+    "EcoTrackDatabase": "Host=localhost;Port=55432;Database=EcoTrackDb;Username=postgres;Password=YOUR_PASSWORD_HERE"
   },
   "JwtSettings": {
     "SecretKey": "CHANGE_THIS_TO_A_SECURE_RANDOM_KEY_AT_LEAST_32_CHARACTERS_LONG",
@@ -32,4 +32,3 @@
   },
   "AllowedHosts": "*"
 }
-

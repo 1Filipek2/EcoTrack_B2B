@@ -76,6 +76,29 @@ public class AuthService : IAuthService
         return (true, "User registered successfully.");
     }
 
+    public async Task<(bool Success, string Token, string Email, string Role, Guid? CompanyId, string Message)> LinkCompanyAsync(
+        Guid userId,
+        Guid companyId,
+        CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if (user == null)
+            return (false, string.Empty, string.Empty, string.Empty, null, "User not found.");
+
+        var company = await _context.Companies.FirstOrDefaultAsync(c => c.Id == companyId, cancellationToken);
+        if (company == null)
+            return (false, string.Empty, string.Empty, string.Empty, null, "Company not found.");
+
+        user.CompanyId = companyId;
+        if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase) == false)
+            user.Role = "CompanyUser";
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var token = GenerateJwtToken(user.Id, user.Email, user.Role, user.CompanyId);
+        return (true, token, user.Email, user.Role, user.CompanyId, "Company linked successfully.");
+    }
+
     public string GenerateJwtToken(Guid userId, string email, string role, Guid? companyId)
     {
         var jwtSettings = _configuration.GetSection("JwtSettings");
@@ -120,4 +143,3 @@ public class AuthService : IAuthService
         return hashToVerify == storedHash;
     }
 }
-

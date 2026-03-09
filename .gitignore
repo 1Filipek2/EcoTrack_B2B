@@ -56,7 +56,8 @@ nunit-*.xml
 # Sensitive configuration files
 **/appsettings.json
 **/appsettings.*.json
-!**/appsettings.Development.json.example
+!**/appsettings.json.example
+!**/appsettings.*.json.example
 
 # Environment variables
 .env
