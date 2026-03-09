@@ -69,39 +69,32 @@ public class AuthService : IAuthService
 
         var verificationCode = GenerateVerificationCode();
         
-        // Check if SMTP is configured
-        var smtpUsername = _configuration["SmtpSettings:Username"];
-        var isDevelopmentMode = string.IsNullOrEmpty(smtpUsername);
-        
         var user = new User
         {
             Email = email,
             PasswordHash = HashPassword(password),
             Role = companyId.HasValue ? "CompanyUser" : "Admin",
             CompanyId = companyId,
-            IsEmailVerified = isDevelopmentMode, // Auto-verify in dev mode
-            EmailVerificationToken = isDevelopmentMode ? null : HashPassword(verificationCode),
-            EmailVerificationTokenExpiresAt = isDevelopmentMode ? null : DateTime.UtcNow.AddHours(24)
+            IsEmailVerified = false, // Always require email verification
+            EmailVerificationToken = HashPassword(verificationCode),
+            EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24)
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Send verification email only if SMTP configured
-        if (!isDevelopmentMode)
+        // Attempt to send verification email
+        var sent = await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
+        
+        if (!sent)
         {
-            var sent = await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
-            if (!sent)
-            {
-                _context.Users.Remove(user);
-                await _context.SaveChangesAsync(cancellationToken);
-                return (false, "Unable to send verification email. Check SMTP settings and try again.");
-            }
-
-            return (true, "User registered. Check your email for verification code.");
+            // Remove user if email failed (prevents orphaned unverified accounts)
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync(cancellationToken);
+            return (false, "Unable to send verification email. Please ensure SendGrid is properly configured and try again.");
         }
 
-        return (true, "User registered successfully. (Dev mode: email verification skipped)");
+        return (true, "User registered successfully. Please check your email for the verification code.");
     }
 
     public async Task<(bool Success, string Message)> VerifyEmailAsync(string email, string verificationCode, CancellationToken cancellationToken = default)

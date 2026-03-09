@@ -24,6 +24,11 @@
     "BaseUrl": "http://localhost:11434",
     "Model": "llama3.2"
   },
+  "SendGrid": {
+    "ApiKey": "SG.YOUR_SENDGRID_API_KEY_HERE",
+    "FromEmail": "ecotrack.noreply@gmail.com",
+    "FromName": "EcoTrack"
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",
