@@ -143,4 +143,21 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { error = "An error occurred during verification." });
         }
     }
+
+    [HttpPost("resend-verification-code")]
+    public async Task<ActionResult> ResendVerificationCode([FromBody] ResendVerificationCodeRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (success, message) = await _authService.ResendVerificationCodeAsync(request.Email, cancellationToken);
+            if (!success)
+                return BadRequest(new { error = message });
+            return Ok(new { message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resending verification code");
+            return StatusCode(500, new { error = "An error occurred while resending verification code." });
+        }
+    }
 }

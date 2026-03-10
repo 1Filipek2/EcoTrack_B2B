@@ -6,6 +6,9 @@ import { authApi } from '../api';
 import { useI18n } from '../i18n';
 import LanguageSwitch from '../components/LanguageSwitch';
 
+const resendVerificationCode = (email: string) =>
+  (authApi as any).resendVerificationCode ? (authApi as any).resendVerificationCode(email) : Promise.reject('Not implemented');
+
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +18,8 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<'register' | 'verify'>('register');
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
 
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -31,8 +36,7 @@ export default function RegisterPage() {
         password,
         companyId: companyId.trim() ? companyId.trim() : undefined,
       });
-
-      // Check if dev mode (email verification skipped)
+      
       if (response.message.includes('Dev mode') || response.message.includes('verification skipped')) {
         setSuccess(t('registerSuccess'));
         setTimeout(() => navigate('/login'), 1500);
@@ -72,8 +76,22 @@ export default function RegisterPage() {
     }
   };
 
+  const handleResendCode = async () => {
+    setResendLoading(true);
+    setResendMessage('');
+    setError('');
+    try {
+      await resendVerificationCode(email);
+      setResendMessage(t('resendCodeSuccess' as any));
+    } catch (err: unknown) {
+      setResendMessage(t('resendCodeFailed' as any));
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-gray-100 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-emerald-50 to-gray-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <div className="flex justify-end mb-3">
           <LanguageSwitch />
@@ -164,13 +182,25 @@ export default function RegisterPage() {
                     type="text"
                     value={verificationCode}
                     onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-center tracking-widest font-mono text-lg"
+                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition text-center tracking-widest font-mono"
                     placeholder="000000"
                     maxLength={6}
                     required
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">{t('checkEmailForCode')}</p>
+                <p className="text-xs text-yellow-500 mt-1">{t('spamWarning' as any)}</p>
+                {resendMessage && (
+                  <div className="mt-2 text-xs text-green-600">{resendMessage}</div>
+                )}
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={resendLoading}
+                  className="mt-2 py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {resendLoading ? t('verifying') : t('resendCode' as any)}
+                </button>
               </div>
 
               <button type="submit" disabled={loading || verificationCode.length !== 6} className="w-full py-2.5 sm:py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm sm:text-base font-medium rounded-lg transition-colors disabled:opacity-50">

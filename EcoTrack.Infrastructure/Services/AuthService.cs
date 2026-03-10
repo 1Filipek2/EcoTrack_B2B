@@ -75,20 +75,18 @@ public class AuthService : IAuthService
             PasswordHash = HashPassword(password),
             Role = companyId.HasValue ? "CompanyUser" : "Admin",
             CompanyId = companyId,
-            IsEmailVerified = false, // Always require email verification
+            IsEmailVerified = false,
             EmailVerificationToken = HashPassword(verificationCode),
             EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24)
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
-
-        // Attempt to send verification email
+        
         var sent = await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
         
         if (!sent)
         {
-            // Remove user if email failed (prevents orphaned unverified accounts)
             _context.Users.Remove(user);
             await _context.SaveChangesAsync(cancellationToken);
             return (false, "Unable to send verification email. Please ensure SendGrid is properly configured and try again.");
@@ -155,6 +153,27 @@ public class AuthService : IAuthService
         _context.Users.Remove(user);
         await _context.SaveChangesAsync(cancellationToken);
         return (true, "Account deleted successfully.");
+    }
+
+    public async Task<(bool Success, string Message)> ResendVerificationCodeAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+        if (user == null)
+            return (false, "User not found.");
+        if (user.IsEmailVerified)
+            return (false, "Email already verified.");
+        var now = DateTime.UtcNow;
+        if (user.LastVerificationCodeSentAt.HasValue && (now - user.LastVerificationCodeSentAt.Value).TotalMinutes < 5)
+            return (false, $"You can resend the code only every 5 minutes. Last sent: {user.LastVerificationCodeSentAt.Value:HH:mm:ss} UTC");
+        var verificationCode = GenerateVerificationCode();
+        user.EmailVerificationToken = HashPassword(verificationCode);
+        user.EmailVerificationTokenExpiresAt = now.AddHours(24);
+        user.LastVerificationCodeSentAt = now;
+        await _context.SaveChangesAsync(cancellationToken);
+        var sent = await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
+        if (!sent)
+            return (false, "Unable to send verification email. Please try again later.");
+        return (true, "Verification code resent successfully. Please check your email.");
     }
 
     public string GenerateJwtToken(Guid userId, string email, string role, Guid? companyId)
