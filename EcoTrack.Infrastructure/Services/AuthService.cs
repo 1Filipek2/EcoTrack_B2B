@@ -52,47 +52,54 @@ public class AuthService : IAuthService
         Guid? companyId, 
         CancellationToken cancellationToken = default)
     {
-        var existingUser = await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
-
-        if (existingUser != null)
-            return (false, "User with this email already exists.");
-
-        if (companyId.HasValue)
+        try
         {
-            var companyExists = await _context.Companies
-                .AnyAsync(c => c.Id == companyId.Value, cancellationToken);
+            var existingUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
 
-            if (!companyExists)
-                return (false, "Company not found.");
-        }
+            if (existingUser != null)
+                return (false, "User with this email already exists.");
 
-        var verificationCode = GenerateVerificationCode();
-        
-        var user = new User
-        {
-            Email = email,
-            PasswordHash = HashPassword(password),
-            Role = companyId.HasValue ? "CompanyUser" : "Admin",
-            CompanyId = companyId,
-            IsEmailVerified = false,
-            EmailVerificationToken = HashPassword(verificationCode),
-            EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24)
-        };
+            if (companyId.HasValue)
+            {
+                var companyExists = await _context.Companies
+                    .AnyAsync(c => c.Id == companyId.Value, cancellationToken);
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync(cancellationToken);
-        
-        var sent = await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
-        
-        if (!sent)
-        {
-            _context.Users.Remove(user);
+                if (!companyExists)
+                    return (false, "Company not found.");
+            }
+
+            var verificationCode = GenerateVerificationCode();
+
+            var user = new User
+            {
+                Email = email,
+                PasswordHash = HashPassword(password),
+                Role = companyId.HasValue ? "CompanyUser" : "Admin",
+                CompanyId = companyId,
+                IsEmailVerified = false,
+                EmailVerificationToken = HashPassword(verificationCode),
+                EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24)
+            };
+
+            _context.Users.Add(user);
             await _context.SaveChangesAsync(cancellationToken);
-            return (false, "Unable to send verification email. Please ensure SendGrid is properly configured and try again.");
-        }
 
-        return (true, "User registered successfully. Please check your email for the verification code.");
+            var sent = await _emailService.SendVerificationEmailAsync(email, verificationCode, cancellationToken);
+
+            if (!sent)
+            {
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync(cancellationToken);
+                return (false, "Unable to send verification email. Please ensure SendGrid is properly configured and try again.");
+            }
+
+            return (true, "User registered successfully. Please check your email for the verification code.");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Registration failed: {ex.Message}");
+        }
     }
 
     public async Task<(bool Success, string Message)> VerifyEmailAsync(string email, string verificationCode, CancellationToken cancellationToken = default)

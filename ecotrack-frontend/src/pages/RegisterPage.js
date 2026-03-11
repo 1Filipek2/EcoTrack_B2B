@@ -42,9 +42,10 @@ import axios from 'axios';
 import { authApi } from '../api';
 import { useI18n } from '../i18n';
 import LanguageSwitch from '../components/LanguageSwitch';
-// Fix: Import resendVerificationCode separately if not on authApi type
 var resendVerificationCode = function (email) {
-    return authApi.resendVerificationCode ? authApi.resendVerificationCode(email) : Promise.reject('Not implemented');
+    return authApi.resendVerificationCode
+        ? authApi.resendVerificationCode(email)
+        : Promise.reject('Not implemented');
 };
 export default function RegisterPage() {
     var _this = this;
@@ -80,7 +81,6 @@ export default function RegisterPage() {
                         })];
                 case 2:
                     response = _c.sent();
-                    // Check if dev mode (email verification skipped)
                     if (response.message.includes('Dev mode') || response.message.includes('verification skipped')) {
                         setSuccess(t('registerSuccess'));
                         setTimeout(function () { return navigate('/login'); }, 1500);
@@ -142,23 +142,23 @@ export default function RegisterPage() {
         });
     }); };
     var handleResendCode = function () { return __awaiter(_this, void 0, void 0, function () {
-        var err_3;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var _a;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
                 case 0:
                     setResendLoading(true);
                     setResendMessage('');
                     setError('');
-                    _a.label = 1;
+                    _b.label = 1;
                 case 1:
-                    _a.trys.push([1, 3, 4, 5]);
+                    _b.trys.push([1, 3, 4, 5]);
                     return [4 /*yield*/, resendVerificationCode(email)];
                 case 2:
-                    _a.sent();
+                    _b.sent();
                     setResendMessage(t('resendCodeSuccess'));
                     return [3 /*break*/, 5];
                 case 3:
-                    err_3 = _a.sent();
+                    _a = _b.sent();
                     setResendMessage(t('resendCodeFailed'));
                     return [3 /*break*/, 5];
                 case 4:

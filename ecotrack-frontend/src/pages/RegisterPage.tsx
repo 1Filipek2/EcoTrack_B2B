@@ -6,8 +6,13 @@ import { authApi } from '../api';
 import { useI18n } from '../i18n';
 import LanguageSwitch from '../components/LanguageSwitch';
 
-const resendVerificationCode = (email: string) =>
-  (authApi as any).resendVerificationCode ? (authApi as any).resendVerificationCode(email) : Promise.reject('Not implemented');
+interface AuthApi {
+  resendVerificationCode?: (email: string) => Promise<{ message: string } | { error: string }>;
+}
+const resendVerificationCode = (email: string): Promise<{ message: string } | { error: string }> =>
+  (authApi as AuthApi).resendVerificationCode
+    ? (authApi as AuthApi).resendVerificationCode(email)
+    : Promise.reject('Not implemented');
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -82,9 +87,9 @@ export default function RegisterPage() {
     setError('');
     try {
       await resendVerificationCode(email);
-      setResendMessage(t('resendCodeSuccess' as any));
-    } catch (err: unknown) {
-      setResendMessage(t('resendCodeFailed' as any));
+      setResendMessage(t('resendCodeSuccess'));
+    } catch {
+      setResendMessage(t('resendCodeFailed'));
     } finally {
       setResendLoading(false);
     }
@@ -189,7 +194,7 @@ export default function RegisterPage() {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">{t('checkEmailForCode')}</p>
-                <p className="text-xs text-yellow-500 mt-1">{t('spamWarning' as any)}</p>
+                <p className="text-xs text-yellow-500 mt-1">{t('spamWarning')}</p>
                 {resendMessage && (
                   <div className="mt-2 text-xs text-green-600">{resendMessage}</div>
                 )}
@@ -199,7 +204,7 @@ export default function RegisterPage() {
                   disabled={resendLoading}
                   className="mt-2 py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {resendLoading ? t('verifying') : t('resendCode' as any)}
+                  {resendLoading ? t('verifying') : t('resendCode')}
                 </button>
               </div>
 

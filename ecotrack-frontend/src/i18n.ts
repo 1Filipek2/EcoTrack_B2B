@@ -81,6 +81,10 @@ const en = {
   unitHelperDefault: 'Use the unit appropriate for the selected category.',
   enterValueIn: 'Enter value in',
   units: 'units',
+  spamWarning: 'Verification code may arrive in spam folder. Please check your spam if you do not see the email.',
+  resendCode: 'Resend code',
+  resendCodeSuccess: 'Verification code resent. Please check your email.',
+  resendCodeFailed: 'Failed to resend code. Please try again later.',
 };
 
 const sk: typeof en = {
@@ -164,6 +168,10 @@ const sk: typeof en = {
   unitHelperDefault: 'Použite jednotku vhodnú pre vybranú kategóriu.',
   enterValueIn: 'Zadajte hodnotu v jednotke',
   units: 'jednotky',
+  spamWarning: 'Overovací kód môže prísť aj do spamu. Skontrolujte spam, ak email nepríde.',
+  resendCode: 'Znova poslať kód',
+  resendCodeSuccess: 'Overovací kód bol znovu odoslaný. Skontrolujte email.',
+  resendCodeFailed: 'Nepodarilo sa znovu odoslať kód. Skúste neskôr.',
 };
 
 const resources: Record<Locale, typeof en> = { en, sk };
