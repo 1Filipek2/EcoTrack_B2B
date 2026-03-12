@@ -60,6 +60,7 @@ services:
       AzureOpenAI__DeploymentName: ${AZURE_OPENAI_DEPLOYMENT:-}
       Ollama__BaseUrl: http://ollama:11434
       Ollama__Model: ${OLLAMA_MODEL:-llama3.2}
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars-long-for-HS256}
     ports:
       - "8080:8080"
     depends_on:
