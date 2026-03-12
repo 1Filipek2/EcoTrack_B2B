@@ -5,7 +5,6 @@ import { authApi } from '../api';
 import { useAuthStore } from '../store/authStore';
 import axios from 'axios';
 import { useI18n } from '../i18n';
-import LanguageSwitch from '../components/LanguageSwitch';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -41,10 +40,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-gray-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-        <div className="flex justify-end mb-3">
-          <LanguageSwitch />
-        </div>
-
         <div className="text-center mb-10 sm:mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-2xl mb-4 sm:mb-6">
             <Leaf className="w-10 h-10 text-white" />

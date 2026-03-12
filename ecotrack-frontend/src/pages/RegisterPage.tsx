@@ -4,7 +4,6 @@ import { Leaf, Lock, Mail, Code, Building2 } from 'lucide-react';
 import axios from 'axios';
 import { authApi } from '../api';
 import { useI18n } from '../i18n';
-import LanguageSwitch from '../components/LanguageSwitch';
 
 interface AuthApi {
   resendVerificationCode?: (email: string) => Promise<{ message: string } | { error: string }>;
@@ -18,6 +17,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [companyId, setCompanyId] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [vatNumber, setVatNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -40,6 +41,8 @@ export default function RegisterPage() {
         email,
         password,
         companyId: companyId.trim() ? companyId.trim() : undefined,
+        companyName: companyName.trim() ? companyName.trim() : undefined,
+        vatNumber: vatNumber.trim() ? vatNumber.trim() : undefined,
       });
       
       if (response.message.includes('Dev mode') || response.message.includes('verification skipped')) {
@@ -98,10 +101,6 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-emerald-50 to-gray-100 px-4 py-8 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
-        <div className="flex justify-end mb-3">
-          <LanguageSwitch />
-        </div>
-
         <div className="text-center mb-10 sm:mb-12">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-2xl mb-4 sm:mb-6">
             <Leaf className="w-10 h-10 text-white" />
@@ -169,6 +168,34 @@ export default function RegisterPage() {
                     onChange={e => setCompanyId(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
                     placeholder={t('companyIdHint')}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">{t('companyName') || 'Company Name (optional)'}</label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={e => setCompanyName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
+                    placeholder={t('companyName') || 'Company Name (optional)'}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">{t('vatNumber') || 'VAT Number (optional)'}</label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 sm:w-5 h-4 sm:h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={vatNumber}
+                    onChange={e => setVatNumber(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition"
+                    placeholder={t('vatNumber') || 'VAT Number (optional)'}
                   />
                 </div>
               </div>

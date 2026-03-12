@@ -53,9 +53,11 @@ public class AuthController : ControllerBase
         try
         {
             var (success, message) = await _authService.RegisterAsync(
-                request.Email, 
-                request.Password, 
-                request.CompanyId, 
+                request.Email,
+                request.Password,
+                request.CompanyId,
+                request.CompanyName,
+                request.VatNumber,
                 cancellationToken);
 
             if (!success)

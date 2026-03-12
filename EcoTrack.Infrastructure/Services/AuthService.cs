@@ -50,6 +50,8 @@ public class AuthService : IAuthService
         string email, 
         string password, 
         Guid? companyId, 
+        string? companyName, 
+        string? vatNumber, 
         CancellationToken cancellationToken = default)
     {
         try
@@ -60,14 +62,30 @@ public class AuthService : IAuthService
             if (existingUser != null)
                 return (false, "User with this email already exists.");
 
+            Guid? finalCompanyId = null;
+            if (!string.IsNullOrWhiteSpace(companyName) && !string.IsNullOrWhiteSpace(vatNumber))
+            {
+                var newCompany = new Company { Name = companyName, VatNumber = vatNumber };
+                _context.Companies.Add(newCompany);
+                await _context.SaveChangesAsync(cancellationToken);
+                finalCompanyId = newCompany.Id;
+            }
+            else if (companyId.HasValue)
+            {
+                var companyExists = await _context.Companies.AnyAsync(c => c.Id == companyId.Value, cancellationToken);
+                if (!companyExists)
+                    return (false, "Provided CompanyId does not exist.");
+                finalCompanyId = companyId;
+            }
+
             var verificationCode = GenerateVerificationCode();
 
             var user = new User
             {
                 Email = email,
                 PasswordHash = HashPassword(password),
-                Role = companyId.HasValue ? "CompanyUser" : "Admin",
-                CompanyId = companyId,
+                Role = finalCompanyId.HasValue ? "CompanyUser" : "Admin",
+                CompanyId = finalCompanyId,
                 IsEmailVerified = false,
                 EmailVerificationToken = HashPassword(verificationCode),
                 EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24)

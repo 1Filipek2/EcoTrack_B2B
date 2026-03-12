@@ -22,6 +22,8 @@ export interface RegisterRequest {
   email: string;
   password: string;
   companyId?: string;
+  companyName?: string;
+  vatNumber?: string;
 }
 
 export interface Company {

@@ -17,7 +17,7 @@ public class AuthServiceTests
         var email = new FakeEmailService { VerificationResult = false };
         var sut = CreateAuthService(db, email);
 
-        var result = await sut.RegisterAsync("rollback@test.com", "Test123!", null, CancellationToken.None);
+        var result = await sut.RegisterAsync("rollback@test.com", "Test123!", null, null, null, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Contains("Unable to send verification email", result.Message);
@@ -31,7 +31,7 @@ public class AuthServiceTests
         var email = new FakeEmailService { VerificationResult = true };
         var sut = CreateAuthService(db, email);
 
-        var result = await sut.RegisterAsync("new@test.com", "Test123!", null, CancellationToken.None);
+        var result = await sut.RegisterAsync("new@test.com", "Test123!", null, null, null, CancellationToken.None);
 
         Assert.True(result.Success);
         var user = await db.Users.SingleAsync();
@@ -70,7 +70,7 @@ public class AuthServiceTests
         var email = new FakeEmailService { VerificationResult = true };
         var sut = CreateAuthService(db, email);
 
-        await sut.RegisterAsync("verify@test.com", "Test123!", null, CancellationToken.None);
+        await sut.RegisterAsync("verify@test.com", "Test123!", null, null, null, CancellationToken.None);
         var verify = await sut.VerifyEmailAsync("verify@test.com", email.LastVerificationCode!, CancellationToken.None);
 
         Assert.True(verify.Success);
@@ -109,7 +109,7 @@ public class AuthServiceTests
         var email = new FakeEmailService { VerificationResult = true };
         var sut = CreateAuthService(db, email);
 
-        await sut.RegisterAsync("ready@test.com", "Test123!", null, CancellationToken.None);
+        await sut.RegisterAsync("ready@test.com", "Test123!", null, null, null, CancellationToken.None);
         await sut.VerifyEmailAsync("ready@test.com", email.LastVerificationCode!, CancellationToken.None);
 
         var login = await sut.LoginAsync("ready@test.com", "Test123!", CancellationToken.None);

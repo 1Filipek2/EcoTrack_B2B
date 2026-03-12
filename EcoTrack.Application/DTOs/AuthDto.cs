@@ -11,6 +11,8 @@ public class RegisterRequest
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public Guid? CompanyId { get; set; }
+    public string? CompanyName { get; set; } 
+    public string? VatNumber { get; set; } 
 }
 
 public class AuthResponse
