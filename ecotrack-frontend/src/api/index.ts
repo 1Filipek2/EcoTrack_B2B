@@ -108,6 +108,14 @@ export const emissionsApi = {
     return response.data;
   },
 
+  update: async (id: string, data: { amount: number; reportedDate: string; rawData: string }): Promise<void> => {
+    await apiClient.put(`emissions/${id}`, data);
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`emissions/${id}`);
+  },
+
   processUnstructured: async (data: {
     companyId: string;
     rawText: string;

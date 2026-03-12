@@ -307,39 +307,64 @@ export default function DashboardPage() {
               {emissions.items.map((emission) => {
                 const expanded = expandedEmissionId === emission.id;
                 return (
-                  <button
-                    type="button"
-                    key={emission.id}
-                    onClick={() => setExpandedEmissionId(expanded ? null : emission.id)}
-                    className="w-full text-left flex flex-col gap-2 p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
-                  >
-                    <div className="flex justify-between items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm sm:text-base text-gray-900 truncate">{emission.category}</p>
+                  <div key={emission.id}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedEmissionId(expanded ? null : emission.id)}
+                      className="w-full text-left flex flex-col gap-2 p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                    >
+                      <div className="flex justify-between items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm sm:text-base text-gray-900 truncate">{emission.category}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <p className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
+                            {emission.amount} {t('units')}
+                          </p>
+                          <ChevronDown className={`w-4 sm:w-5 h-4 sm:h-5 text-gray-500 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <p className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
-                          {emission.amount} {t('units')}
+
+                      <div className="flex justify-between items-center gap-2">
+                        <p className="text-xs sm:text-sm text-gray-600">
+                          {new Date(emission.reportDate).toLocaleDateString()}
                         </p>
-                        <ChevronDown className={`w-4 sm:w-5 h-4 sm:h-5 text-gray-500 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`} />
+                        <p className="font-semibold text-sm sm:text-base text-gray-900 whitespace-nowrap">
+                          {emission.co2Equivalent.toFixed(2)} kg CO₂
+                        </p>
                       </div>
-                    </div>
 
-                    <div className="flex justify-between items-center gap-2">
-                      <p className="text-xs sm:text-sm text-gray-600">
-                        {new Date(emission.reportDate).toLocaleDateString()}
-                      </p>
-                      <p className="font-semibold text-sm sm:text-base text-gray-900 whitespace-nowrap">
-                        {emission.co2Equivalent.toFixed(2)} kg CO₂
-                      </p>
-                    </div>
-
-                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
-                      <div className="pt-2 text-xs sm:text-sm text-gray-600 border-t border-gray-200 mt-1">
-                        {emission.rawData}
+                      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${expanded ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
+                        <div className="pt-2 text-xs sm:text-sm text-gray-600 border-t border-gray-200 mt-1">
+                          {emission.rawData}
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    {expanded && (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          className="btn-secondary text-xs"
+                          onClick={() => navigate(`/emissions/edit/${emission.id}`)}
+                        >
+                          {t('edit')}
+                        </button>
+                        <button
+                          className="btn-danger text-xs"
+                          onClick={async () => {
+                            if (window.confirm(t('confirmDeleteEmission'))) {
+                              await emissionsApi.delete(emission.id);
+                              // reload emissions
+                              const emissionsData = await emissionsApi.getAll({ pageNumber: 1, pageSize: 5 });
+                              setEmissions(emissionsData);
+                              setExpandedEmissionId(null);
+                            }
+                          }}
+                        >
+                          {t('delete')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

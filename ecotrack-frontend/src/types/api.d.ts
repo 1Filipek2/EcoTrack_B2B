@@ -31,6 +31,7 @@ export interface EmissionCategory {
     description: string;
     scope: EmissionScope;
     createdAt: string;
+    nameTranslations?: Record<string, string>;
 }
 export type EmissionScope = 1 | 2 | 3;
 export declare const EmissionScopeLabels: Record<EmissionScope, string>;

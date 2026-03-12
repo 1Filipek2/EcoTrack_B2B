@@ -117,9 +117,12 @@ export default function CreateEmissionPage() {
               required
             >
               {!hasCategories && <option value="">{t('noCategoriesOption')}</option>}
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              {categories.map((c) => {
+                const cat: any = c;
+                return (
+                  <option key={c.id} value={c.id}>{(cat.nameTranslations && cat.nameTranslations[locale]) || c.name}</option>
+                );
+              })}
             </select>
           </div>
 
@@ -140,7 +143,7 @@ export default function CreateEmissionPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('reportedDate')}</label>
               <input
-                className="input-field !w-auto min-w-[220px] max-w-full"
+                className="input-field w-auto! min-w-55 max-w-full"
                 type="datetime-local"
                 value={reportedDate}
                 onChange={(e) => setReportedDate(e.target.value)}

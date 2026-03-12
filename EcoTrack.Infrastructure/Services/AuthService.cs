@@ -98,8 +98,11 @@ public class AuthService : IAuthService
 
             if (!sent)
             {
-                _context.Users.Remove(user);
-                await _context.SaveChangesAsync(cancellationToken);
+                try {
+                    _context.Users.Remove(user);
+                    await _context.SaveChangesAsync(cancellationToken);
+                } catch {
+                }
                 return (false, "Unable to send verification email. Please ensure SendGrid is properly configured and try again.");
             }
 

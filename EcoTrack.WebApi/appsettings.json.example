@@ -1,9 +1,9 @@
 {
   "ConnectionStrings": {
-    "EcoTrackDatabase": "Host=localhost;Port=55432;Database=EcoTrackDb;Username=postgres;Password=YOUR_PASSWORD_HERE"
+    "EcoTrackDatabase": "Host=YOUR_HOST;Port=5432;Database=YOUR_DB;Username=YOUR_USER;Password=YOUR_PASSWORD;SslMode=Require"
   },
   "JwtSettings": {
-    "SecretKey": "CHANGE_THIS_TO_A_SECURE_RANDOM_KEY_AT_LEAST_32_CHARACTERS_LONG",
+    "SecretKey": "YOUR_SECRET_KEY",
     "Issuer": "EcoTrackAPI",
     "Audience": "EcoTrackClient",
     "ExpirationHours": 24
@@ -25,7 +25,7 @@
     "Model": "llama3.2"
   },
   "SendGrid": {
-    "ApiKey": "SG.YOUR_SENDGRID_API_KEY_HERE",
+    "ApiKey": "YOUR_SENDGRID_API_KEY",
     "FromEmail": "ecotrack.noreply@gmail.com",
     "FromName": "EcoTrack"
   },

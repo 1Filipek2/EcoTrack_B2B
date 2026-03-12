@@ -29,7 +29,8 @@ public class EmissionCategoriesController : ControllerBase
             {
                 Name = request.Name,
                 Description = request.Description,
-                Scope = request.Scope
+                Scope = request.Scope,
+                NameTranslations = request.NameTranslations
             };
 
             _context.EmissionCategories.Add(category);
@@ -68,6 +69,5 @@ public class CreateCategoryRequest
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public EmissionScope Scope { get; set; }
+    public string? NameTranslations { get; set; } // JSON: { "en": "Fuel", "sk": "Palivo" }
 }
-
-

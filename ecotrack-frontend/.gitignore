@@ -27,3 +27,6 @@ dist-ssr
 *.sln
 *.sw?
 .env*.local
+
+# Ignore JS files in src (build artefacts or legacy)
+src/**/*.js

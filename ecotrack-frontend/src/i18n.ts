@@ -85,6 +85,9 @@ const en = {
   resendCode: 'Resend code',
   resendCodeSuccess: 'Verification code resent. Please check your email.',
   resendCodeFailed: 'Failed to resend code. Please try again later.',
+  edit: 'Edit',
+  delete: 'Delete',
+  confirmDeleteEmission: 'Do you really want to delete this emission? This action cannot be undone.',
 };
 
 const sk: typeof en = {
@@ -172,6 +175,9 @@ const sk: typeof en = {
   resendCode: 'Znova poslať kód',
   resendCodeSuccess: 'Overovací kód bol znovu odoslaný. Skontrolujte email.',
   resendCodeFailed: 'Nepodarilo sa znovu odoslať kód. Skúste neskôr.',
+  edit: 'Upraviť',
+  delete: 'Vymazať',
+  confirmDeleteEmission: 'Naozaj chcete vymazať túto emisiu? Táto akcia je nevratná.',
 };
 
 const resources: Record<Locale, typeof en> = { en, sk };

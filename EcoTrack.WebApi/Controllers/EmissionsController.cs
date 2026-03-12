@@ -126,6 +126,50 @@ public class EmissionsController : ControllerBase
         return Ok(dto);
     }
 
+    [HttpPut("{id}")]
+    public async Task<ActionResult> UpdateEmission(Guid id, [FromBody] UpdateEmissionRequest request)
+    {
+        var currentCompanyId = GetCurrentCompanyId();
+        if (!currentCompanyId.HasValue)
+            return BadRequest(new { error = "Your account is not linked to a company." });
+
+        var emission = await _context.EmissionEntries
+            .Include(e => e.Company)
+            .FirstOrDefaultAsync(e => e.Id == id && e.Company.Id == currentCompanyId.Value && !e.IsDeleted);
+
+        if (emission == null)
+            return NotFound();
+
+        emission.Amount = request.Amount;
+        emission.ReportDate = request.ReportedDate;
+        emission.RawData = request.RawData;
+        emission.LastModifiedAt = DateTimeOffset.UtcNow;
+        emission.LastModifiedBy = User.Identity?.Name ?? "unknown";
+        await _context.SaveChangesAsync(CancellationToken.None);
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteEmission(Guid id)
+    {
+        var currentCompanyId = GetCurrentCompanyId();
+        if (!currentCompanyId.HasValue)
+            return BadRequest(new { error = "Your account is not linked to a company." });
+
+        var emission = await _context.EmissionEntries
+            .Include(e => e.Company)
+            .FirstOrDefaultAsync(e => e.Id == id && e.Company.Id == currentCompanyId.Value && !e.IsDeleted);
+
+        if (emission == null)
+            return NotFound();
+
+        emission.IsDeleted = true;
+        emission.DeletedAt = DateTimeOffset.UtcNow;
+        emission.DeletedBy = User.Identity?.Name ?? "unknown";
+        await _context.SaveChangesAsync(CancellationToken.None);
+        return NoContent();
+    }
+
     [HttpGet]
     public async Task<ActionResult<PagedResult<EmissionDto>>> GetEmissions([FromQuery] PaginationParams pagination)
     {
@@ -144,7 +188,7 @@ public class EmissionsController : ControllerBase
         var query = _context.EmissionEntries
             .Include(e => e.Company)
             .Include(e => e.Category)
-            .Where(e => e.Company.Id == currentCompanyId.Value)
+            .Where(e => e.Company.Id == currentCompanyId.Value && !e.IsDeleted)
             .OrderByDescending(e => e.ReportDate);
         
         var totalCount = await query.CountAsync();
@@ -196,4 +240,11 @@ public class ProcessUnstructuredEmissionRequest
     public Guid CompanyId { get; set; }
     public string RawText { get; set; } = string.Empty;
     public DateTimeOffset? ReportedDate { get; set; }
+}
+
+public class UpdateEmissionRequest
+{
+    public decimal Amount { get; set; }
+    public DateTimeOffset ReportedDate { get; set; }
+    public string RawData { get; set; } = string.Empty;
 }

@@ -5,7 +5,8 @@
     "moduleResolution": "bundler",
     "types": ["node", "react", "react-dom", "vite/client"],
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "outDir": "dist"
   },
   "include": ["src", "src/vite-env.d.ts"]
 }

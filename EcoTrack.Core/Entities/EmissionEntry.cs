@@ -12,6 +12,12 @@ public class EmissionEntry : BaseEntity
     public string RawData { get; set; } = string.Empty;
     
     public decimal Co2Equivalent { get; private set; }
+    
+    public bool IsDeleted { get; set; } = false;
+    public DateTimeOffset? DeletedAt { get; set; }
+    public string? DeletedBy { get; set; }
+    public DateTimeOffset? LastModifiedAt { get; set; }
+    public string? LastModifiedBy { get; set; }
 
     public void SetEmissionFactor(decimal factor)
     {
