@@ -60,15 +60,6 @@ public class AuthService : IAuthService
             if (existingUser != null)
                 return (false, "User with this email already exists.");
 
-            if (companyId.HasValue)
-            {
-                var companyExists = await _context.Companies
-                    .AnyAsync(c => c.Id == companyId.Value, cancellationToken);
-
-                if (!companyExists)
-                    return (false, "Company not found.");
-            }
-
             var verificationCode = GenerateVerificationCode();
 
             var user = new User

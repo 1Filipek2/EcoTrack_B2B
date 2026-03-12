@@ -9,25 +9,13 @@ using EcoTrack.WebApi;
 
 namespace EcoTrack.Tests.WebApi;
 
-public class EmissionCategoriesControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class EmissionCategoriesControllerIntegrationTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public EmissionCategoriesControllerIntegrationTests(WebApplicationFactory<Program> factory)
+    public EmissionCategoriesControllerIntegrationTests(CustomWebApplicationFactory<Program> factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureAppConfiguration((context, config) =>
-            {
-                var dict = new Dictionary<string, string?>
-                {
-                    {"JwtSettings:SecretKey", "test-secret-key-1234567890-abcdefghijklmnopqrstuvwxyz"},
-                    {"JwtSettings:Issuer", "EcoTrackAPI"},
-                    {"JwtSettings:Audience", "EcoTrackClient"}
-                };
-                config.AddInMemoryCollection(dict);
-            });
-        });
+        _factory = factory;
     }
 
     [Fact]

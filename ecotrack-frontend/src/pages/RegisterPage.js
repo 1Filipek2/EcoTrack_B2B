@@ -37,7 +37,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Building2, Leaf, Lock, Mail, Code } from 'lucide-react';
+import { Leaf, Lock, Mail, Code, Building2 } from 'lucide-react';
 import axios from 'axios';
 import { authApi } from '../api';
 import { useI18n } from '../i18n';

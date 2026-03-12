@@ -1,9 +1,24 @@
 using EcoTrack.WebApi.Configuration;
+using Microsoft.Extensions.Configuration;
 
 namespace EcoTrack.Tests.WebApi;
 
 public class ConnectionStringNormalizerTests
 {
+    static ConnectionStringNormalizerTests()
+    {
+        var dict = new Dictionary<string, string?>
+        {
+            {"JwtSettings:SecretKey", "test-secret-key-1234567890-abcdefghijklmnopqrstuvwxyz"},
+            {"JwtSettings:Issuer", "EcoTrackAPI"},
+            {"JwtSettings:Audience", "EcoTrackClient"}
+        };
+        var configBuilder = new ConfigurationBuilder();
+        configBuilder.AddInMemoryCollection(dict);
+        var config = configBuilder.Build();
+        // Optionally set as global config if needed
+    }
+
     [Fact]
     public void Normalize_LocalhostKeyValue_DisablesSsl()
     {
@@ -50,4 +65,3 @@ public class ConnectionStringNormalizerTests
         Assert.Contains("SSL Mode=Disable", result);
     }
 }
-
