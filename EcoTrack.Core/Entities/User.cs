@@ -6,7 +6,7 @@ public class User : BaseEntity
 {
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
-    public string Role { get; set; } = "CompanyUser"; // Admin, CompanyUser
+    public EcoTrack.Core.Enums.UserRole Role { get; set; } = EcoTrack.Core.Enums.UserRole.CompanyUser;
     public Guid? CompanyId { get; set; }
     public Company? Company { get; set; }
     

@@ -22,8 +22,5 @@ public class EmissionCategoryConfiguration : IEntityTypeConfiguration<EmissionCa
 
         builder.Property(c => c.Scope)
             .IsRequired();
-
-        builder.Property<Vector>("Embedding")
-            .HasColumnType("vector(1536)");
     }
 }

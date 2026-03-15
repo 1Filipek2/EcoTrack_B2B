@@ -19,9 +19,6 @@ public class EmissionEntryConfiguration : IEntityTypeConfiguration<EmissionEntry
         builder.Property(e => e.RawData)
             .HasMaxLength(2000);
         
-        builder.Property<Vector>("Embedding")
-            .HasColumnType("vector(1536)"); 
-        
         builder.HasOne(e => e.Company)
             .WithMany(c => c.EmissionEntries)
             .OnDelete(DeleteBehavior.Cascade);

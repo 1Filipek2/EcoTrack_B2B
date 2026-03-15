@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthResponse, User } from '../types/api';
 
+export enum UserRole {
+  Admin = 'Admin',
+  CompanyUser = 'CompanyUser',
+}
+
 interface AuthState {
   token: string | null;
   user: User | null;
@@ -25,7 +30,7 @@ export const useAuthStore = create<AuthState>()(
           user: {
             id: '',
             email: authData.email,
-            role: authData.role,
+            role: authData.role as UserRole,
             companyId: authData.companyId,
           },
           isAuthenticated: true,
@@ -39,7 +44,7 @@ export const useAuthStore = create<AuthState>()(
           user: {
             id: '',
             email: authData.email,
-            role: authData.role,
+            role: authData.role as UserRole,
             companyId: authData.companyId,
           },
           isAuthenticated: true,

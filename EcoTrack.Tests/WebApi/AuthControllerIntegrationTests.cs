@@ -31,14 +31,7 @@ public class AuthControllerIntegrationTests : IClassFixture<CustomWebApplication
 
     public AuthControllerIntegrationTests(CustomWebApplicationFactory<Program> factory)
     {
-        _factory = factory.WithWebHostBuilder(builder =>
-        {
-
-            builder.ConfigureTestServices(services =>
-            {
-                services.AddScoped<IEmailService, FakeEmailService>();
-            });
-        });
+        _factory = factory;
     }
 
     [Fact]

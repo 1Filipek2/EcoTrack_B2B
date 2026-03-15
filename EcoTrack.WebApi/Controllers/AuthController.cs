@@ -6,9 +6,10 @@ using System.Security.Claims;
 
 namespace EcoTrack.WebApi.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : ControllerBase
+ [ApiController]
+ [Route("api/[controller]")]
+ [Authorize]
+ public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
     private readonly ILogger<AuthController> _logger;
@@ -20,6 +21,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         try
@@ -48,6 +50,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [AllowAnonymous]
     public async Task<ActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         try
@@ -73,6 +76,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [Authorize(Roles = "Admin")]
     [HttpPost("link-company")]
     public async Task<ActionResult<AuthResponse>> LinkCompany([FromBody] LinkCompanyRequest request, CancellationToken cancellationToken)
     {
@@ -102,6 +106,7 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [Authorize(Roles = "CompanyUser")]
     [HttpDelete("me")]
     public async Task<ActionResult> DeleteMyAccount(CancellationToken cancellationToken)
     {
@@ -125,6 +130,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("verify-email")]
+    [AllowAnonymous]
     public async Task<ActionResult> VerifyEmail([FromBody] VerifyEmailRequest request, CancellationToken cancellationToken)
     {
         try
@@ -147,6 +153,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("resend-verification-code")]
+    [AllowAnonymous]
     public async Task<ActionResult> ResendVerificationCode([FromBody] ResendVerificationCodeRequest request, CancellationToken cancellationToken)
     {
         try

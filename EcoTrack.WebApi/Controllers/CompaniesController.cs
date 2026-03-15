@@ -26,6 +26,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<Company>> CreateCompany([FromBody] CreateCompanyRequest request)
     {
         try
@@ -60,6 +61,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<PagedResult<Company>>> GetCompanies([FromQuery] PaginationParams pagination)
     {
         var query = _context.Companies.AsQueryable();
@@ -83,6 +85,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpGet("{id}/sustainability-report")]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<SustainabilityReportDto>> GetSustainabilityReport(
         Guid id,
         [FromQuery] DateTimeOffset? startDate,

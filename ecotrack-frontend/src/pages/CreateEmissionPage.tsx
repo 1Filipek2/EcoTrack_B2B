@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { categoriesApi, emissionsApi } from '../api';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, UserRole } from '../store/authStore';
 import type { EmissionCategory } from '../types/api';
 import { useI18n } from '../i18n';
 
@@ -26,6 +26,7 @@ export default function CreateEmissionPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { t, locale } = useI18n();
+  const forbidden = user?.role !== UserRole.CompanyUser;
 
   const [categories, setCategories] = useState<EmissionCategory[]>([]);
   const [categoryId, setCategoryId] = useState('');
@@ -58,6 +59,11 @@ export default function CreateEmissionPage() {
     e.preventDefault();
     setError('');
 
+    if (forbidden) {
+      setError(t('forbiddenEmissionAction'));
+      return;
+    }
+
     if (!companyId) {
       setError(t('accountNotLinked'));
       return;
@@ -65,6 +71,16 @@ export default function CreateEmissionPage() {
 
     if (!hasCategories) {
       setError(t('noCategoriesAvailable'));
+      return;
+    }
+
+    if (rawData.length > 10000) {
+      setError(t('rawDataTooLong'));
+      return;
+    }
+
+    if (Number(amount) < 0.01) {
+      setError(t('amountMustBePositive'));
       return;
     }
 
@@ -98,6 +114,12 @@ export default function CreateEmissionPage() {
       <div className="max-w-3xl mx-auto card">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('createEmission')}</h1>
 
+        {forbidden && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {t('forbiddenEmissionAction')}
+          </div>
+        )}
+
         {!hasCategories && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
             {t('categoriesEmptyRestart')}
@@ -113,7 +135,7 @@ export default function CreateEmissionPage() {
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               className="input-field"
-              disabled={!hasCategories}
+              disabled={!hasCategories || forbidden}
               required
             >
               {!hasCategories && <option value="">{t('noCategoriesOption')}</option>}
@@ -138,6 +160,7 @@ export default function CreateEmissionPage() {
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={`${t('enterValueIn')} ${unitLabel}`}
                 required
+                disabled={forbidden}
               />
             </div>
             <div>
@@ -148,17 +171,26 @@ export default function CreateEmissionPage() {
                 value={reportedDate}
                 onChange={(e) => setReportedDate(e.target.value)}
                 required
+                disabled={forbidden}
               />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('rawDataNote')}</label>
-            <textarea className="input-field min-h-32" value={rawData} onChange={(e) => setRawData(e.target.value)} placeholder={t('aiTextExample')} required />
+            <textarea
+              className="input-field min-h-32"
+              value={rawData}
+              onChange={(e) => setRawData(e.target.value)}
+              placeholder={t('aiTextExample')}
+              required
+              maxLength={10000}
+              disabled={forbidden}
+            />
           </div>
 
           <div className="flex gap-3">
-            <button type="submit" disabled={loading || !hasCategories} className="btn-primary disabled:opacity-50">{loading ? t('saving') : t('saveEmission')}</button>
+            <button type="submit" disabled={loading || !hasCategories || forbidden} className="btn-primary disabled:opacity-50">{loading ? t('saving') : t('saveEmission')}</button>
             <button type="button" className="btn-secondary" onClick={() => navigate('/dashboard')}>{t('cancel')}</button>
           </div>
         </form>

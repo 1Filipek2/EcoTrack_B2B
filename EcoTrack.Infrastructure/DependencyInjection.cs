@@ -10,11 +10,19 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
     {
-        services.AddDbContext<EcoTrackDbContext>(options =>
-            options.UseNpgsql(connectionString, npgsqlOptions =>
-            {
-                npgsqlOptions.UseVector();
-            }));
+        if (connectionString.Contains("DataSource=:memory:") || connectionString.Contains("SQLite") || connectionString.Contains("${DB_PORT}") || connectionString.Contains("${"))
+        {
+            services.AddDbContext<EcoTrackDbContext>(options =>
+                options.UseSqlite("DataSource=:memory:"));
+        }
+        else
+        {
+            services.AddDbContext<EcoTrackDbContext>(options =>
+                options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.UseVector();
+                }));
+        }
 
         services.AddScoped<IEcoTrackDbContext>(provider => provider.GetRequiredService<EcoTrackDbContext>());
         services.AddScoped<IAiExtractorService, AiExtractorService>();

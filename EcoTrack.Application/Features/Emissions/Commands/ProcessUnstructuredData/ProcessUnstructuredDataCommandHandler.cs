@@ -48,7 +48,7 @@ public class ProcessUnstructuredDataCommandHandler : IRequestHandler<ProcessUnst
             ReportDate = request.ReportDate ?? DateTimeOffset.UtcNow
         };
 
-        emissionEntry.SetEmissionFactor(ResolveEmissionFactor(category.Name, extracted.Unit));
+        emissionEntry.Co2Equivalent = emissionEntry.Amount * ResolveEmissionFactor(category.Name, extracted.Unit);
 
         _context.EmissionEntries.Add(emissionEntry);
         await _context.SaveChangesAsync(cancellationToken);

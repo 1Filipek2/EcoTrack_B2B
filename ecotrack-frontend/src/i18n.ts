@@ -1,6 +1,9 @@
 import { useI18nStore, type Locale } from './store/i18nStore';
 
 const en = {
+  forbiddenEmissionAction: 'You do not have permission to create or process emissions.',
+  rawDataTooLong: 'Raw data is too long. Maximum allowed is 10,000 characters.',
+  amountMustBePositive: 'Amount must be positive.',
   appName: 'EcoTrack',
   trackFootprint: 'Track your carbon footprint',
   signIn: 'Sign in',
@@ -91,6 +94,9 @@ const en = {
 };
 
 const sk: typeof en = {
+  forbiddenEmissionAction: 'Nemáte oprávnenie vytvárať alebo spracovať emisie.',
+  rawDataTooLong: 'Dátové pole je príliš dlhé. Maximálne povolených je 10 000 znakov.',
+  amountMustBePositive: 'Množstvo musí byť kladné.',
   appName: 'EcoTrack',
   trackFootprint: 'Sledujte svoju uhlíkovú stopu',
   signIn: 'Prihlásiť sa',

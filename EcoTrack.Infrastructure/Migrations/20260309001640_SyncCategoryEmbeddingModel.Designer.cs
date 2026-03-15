@@ -15,7 +15,6 @@ namespace EcoTrack.Infrastructure.Migrations
     [Migration("20260309001640_SyncCategoryEmbeddingModel")]
     partial class SyncCategoryEmbeddingModel
     {
-        /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618

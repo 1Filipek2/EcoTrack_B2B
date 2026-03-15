@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { emissionsApi } from '../api';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, UserRole } from '../store/authStore';
 import { useI18n } from '../i18n';
 
 export default function AiExtractionPage() {
@@ -10,6 +10,7 @@ export default function AiExtractionPage() {
   const { user } = useAuthStore();
   const { t } = useI18n();
   const companyId = useMemo(() => user?.companyId ?? '', [user?.companyId]);
+  const forbidden = user?.role !== UserRole.CompanyUser;
 
   const [rawText, setRawText] = useState('');
   const [reportedDate, setReportedDate] = useState(new Date().toISOString().slice(0, 16));
@@ -22,11 +23,18 @@ export default function AiExtractionPage() {
     setError('');
     setCreatedId('');
 
+    if (forbidden) {
+      setError(t('forbiddenEmissionAction'));
+      return;
+    }
     if (!companyId) {
       setError(t('accountNotLinked'));
       return;
     }
-
+    if (rawText.length > 10000) {
+      setError(t('rawDataTooLong'));
+      return;
+    }
     setLoading(true);
     try {
       const id = await emissionsApi.processUnstructured({
@@ -52,6 +60,12 @@ export default function AiExtractionPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('aiExtraction')}</h1>
         <p className="text-gray-600 mb-6">{t('aiDescription')}</p>
 
+        {forbidden && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            {t('forbiddenEmissionAction')}
+          </div>
+        )}
+
         {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
         {createdId && <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{t('createdEmissionId')}: {createdId}</div>}
 
@@ -64,6 +78,7 @@ export default function AiExtractionPage() {
               value={reportedDate}
               onChange={(e) => setReportedDate(e.target.value)}
               required
+              disabled={forbidden}
             />
           </div>
 
@@ -75,11 +90,13 @@ export default function AiExtractionPage() {
               onChange={(e) => setRawText(e.target.value)}
               placeholder={t('aiTextExample')}
               required
+              maxLength={10000}
+              disabled={forbidden}
             />
           </div>
 
           <div className="flex gap-3">
-            <button type="submit" disabled={loading} className="btn-primary disabled:opacity-50">{loading ? t('processing') : t('processWithAi')}</button>
+            <button type="submit" disabled={loading || forbidden} className="btn-primary disabled:opacity-50">{loading ? t('processing') : t('processWithAi')}</button>
             <button type="button" className="btn-secondary" onClick={() => navigate('/dashboard')}>{t('back')}</button>
           </div>
         </form>

@@ -51,7 +51,7 @@ public class AuthServiceTests
             Email = "unverified@test.com",
             PasswordHash = Hash("Test123!"),
             IsEmailVerified = false,
-            Role = "Admin"
+            Role = EcoTrack.Core.Enums.UserRole.Admin
         });
         await db.SaveChangesAsync(CancellationToken.None);
 
@@ -91,7 +91,7 @@ public class AuthServiceTests
             IsEmailVerified = false,
             EmailVerificationToken = Hash("123456"),
             EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddMinutes(-1),
-            Role = "Admin"
+            Role = EcoTrack.Core.Enums.UserRole.Admin
         });
         await db.SaveChangesAsync(CancellationToken.None);
 

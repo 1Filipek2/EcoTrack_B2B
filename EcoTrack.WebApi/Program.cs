@@ -5,15 +5,50 @@ using EcoTrack.Infrastructure;
 using EcoTrack.Infrastructure.Persistence;
 using EcoTrack.WebApi.Configuration;
 using EcoTrack.WebApi.Middleware;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: "global",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 100,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 10
+            }));
+    
+    options.AddPolicy("Sensitive", context => 
+    {
+        var key = context.Request.Headers["X-Forwarded-For"].ToString() 
+                  ?? context.Connection.RemoteIpAddress?.ToString() 
+                  ?? "anon";
 
-builder.Services.AddControllers();
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 2
+            });
+    });
+});
+
+builder.Services.AddControllers().AddFluentValidation(fv =>
+{
+    fv.RegisterValidatorsFromAssemblyContaining<EcoTrack.Application.Validators.RegisterRequestValidator>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
@@ -60,16 +95,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 builder.Services.AddApplication();
 
-var rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
-    ?? builder.Configuration["ConnectionStrings__EcoTrackDatabase"];
 
-var normalizedConnectionString = string.IsNullOrWhiteSpace(rawConnectionString)
-    ? "Host=localhost;Port=5432;Database=placeholder;Username=placeholder;Password=placeholder;SSL Mode=Disable"
-    : ConnectionStringNormalizer.Normalize(rawConnectionString);
+
+var rawConnectionString = builder.Configuration["ConnectionStrings:EcoTrackDatabase"];
+if (string.IsNullOrWhiteSpace(rawConnectionString))
+{
+    rawConnectionString = builder.Configuration.GetConnectionString("EcoTrackDatabase")
+        ?? builder.Configuration["ConnectionStrings__EcoTrackDatabase"];
+}
+
+string normalizedConnectionString;
+if (string.IsNullOrWhiteSpace(rawConnectionString))
+{
+    normalizedConnectionString = "Host=localhost;Port=5432;Database=placeholder;Username=placeholder;Password=placeholder;SSL Mode=Disable";
+}
+else if (rawConnectionString.StartsWith("DataSource=", StringComparison.OrdinalIgnoreCase) || rawConnectionString.Contains("SQLite", StringComparison.OrdinalIgnoreCase) || rawConnectionString.Contains("${DB_PORT}") || rawConnectionString.Contains("${"))
+{
+    // Use SQLite connection string as-is for tests or unresolved placeholders
+    normalizedConnectionString = "DataSource=:memory:";
+}
+else
+{
+    normalizedConnectionString = ConnectionStringNormalizer.Normalize(rawConnectionString);
+}
 
 builder.Services.AddInfrastructure(normalizedConnectionString);
 
 var app = builder.Build();
+app.UseRateLimiter();
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
@@ -84,16 +137,20 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
-try
+// Only run migrations/seeding if not using SQLite (test environment)
+if (!(normalizedConnectionString.StartsWith("DataSource=", StringComparison.OrdinalIgnoreCase) || normalizedConnectionString.Contains("SQLite", StringComparison.OrdinalIgnoreCase)))
 {
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<EcoTrackDbContext>();
-    await dbContext.Database.MigrateAsync();
-    await SeedEmissionCategoriesAsync(dbContext);
-}
-catch (Exception ex)
-{
-    app.Logger.LogError(ex, "Failed to run migrations or seed data. App will continue without DB.");
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<EcoTrackDbContext>();
+        await dbContext.Database.MigrateAsync();
+        await SeedEmissionCategoriesAsync(dbContext);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Failed to run migrations or seed data. App will continue without DB.");
+    }
 }
 
 app.UseCors("AllowFrontend");
@@ -104,7 +161,7 @@ if (!app.Environment.IsProduction())
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
+app.MapControllers().RequireRateLimiting("Sensitive");
 app.MapHealthChecks("/health");
 app.MapGet("/", () => "Hi!");
 

@@ -21,6 +21,7 @@ public class EmissionCategoriesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<ActionResult<EmissionCategory>> CreateCategory([FromBody] CreateCategoryRequest request)
     {
         try
@@ -57,6 +58,7 @@ public class EmissionCategoriesController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public ActionResult<IEnumerable<EmissionCategory>> GetCategories()
     {
         var categories = _context.EmissionCategories.ToList();
@@ -69,5 +71,5 @@ public class CreateCategoryRequest
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public EmissionScope Scope { get; set; }
-    public string? NameTranslations { get; set; } // JSON: { "en": "Fuel", "sk": "Palivo" }
+    public string? NameTranslations { get; set; }
 }

@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using EcoTrack.Application.Interfaces;
 using EcoTrack.Core.Entities;
+using EcoTrack.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -41,9 +42,9 @@ public class AuthService : IAuthService
         if (!VerifyPassword(password, user.PasswordHash))
             return (false, string.Empty, string.Empty, null);
 
-        var token = GenerateJwtToken(user.Id, user.Email, user.Role, user.CompanyId);
+        var token = GenerateJwtToken(user.Id, user.Email, user.Role.ToString(), user.CompanyId);
 
-        return (true, token, user.Role, user.CompanyId);
+        return (true, token, user.Role.ToString(), user.CompanyId);
     }
 
     public async Task<(bool Success, string Message)> RegisterAsync(
@@ -84,7 +85,7 @@ public class AuthService : IAuthService
             {
                 Email = email,
                 PasswordHash = HashPassword(password),
-                Role = finalCompanyId.HasValue ? "CompanyUser" : "Admin",
+                Role = finalCompanyId.HasValue ? UserRole.CompanyUser : UserRole.Admin,
                 CompanyId = finalCompanyId,
                 IsEmailVerified = false,
                 EmailVerificationToken = HashPassword(verificationCode),
@@ -154,13 +155,13 @@ public class AuthService : IAuthService
             return (false, string.Empty, string.Empty, string.Empty, null, "Company not found.");
 
         user.CompanyId = companyId;
-        if (string.Equals(user.Role, "Admin", StringComparison.OrdinalIgnoreCase) == false)
-            user.Role = "CompanyUser";
+        if (user.Role != UserRole.Admin)
+            user.Role = UserRole.CompanyUser;
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        var token = GenerateJwtToken(user.Id, user.Email, user.Role, user.CompanyId);
-        return (true, token, user.Email, user.Role, user.CompanyId, "Company linked successfully.");
+        var token = GenerateJwtToken(user.Id, user.Email, user.Role.ToString(), user.CompanyId);
+        return (true, token, user.Email, user.Role.ToString(), user.CompanyId, "Company linked successfully.");
     }
 
     public async Task<(bool Success, string Message)> DeleteAccountAsync(Guid userId, CancellationToken cancellationToken = default)

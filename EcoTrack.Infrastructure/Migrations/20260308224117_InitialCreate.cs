@@ -9,8 +9,6 @@ namespace EcoTrack.Infrastructure.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS vector;");
-
             migrationBuilder.CreateTable(
                 name: "Companies",
                 columns: table => new
